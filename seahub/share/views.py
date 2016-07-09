@@ -39,6 +39,14 @@ from seahub.utils.mail import send_html_email_with_dj_template, MAIL_PRIORITY
 from seahub.settings import SITE_ROOT, REPLACE_FROM_EMAIL, ADD_REPLY_TO_HEADER
 from seahub.profile.models import Profile
 
+######################### Start PingAn Group related ########################
+from seahub.share.models import (FileShare, FileShareReviserInfo,
+                                 FileShareVerify, FileShareDownloads,
+                                 FileShareReceiver)
+from seahub.share.settings import ENABLE_FILESHARE_CHECK
+from seahub.settings import SHARE_ACCESS_EXPIRATION
+######################### End PingAn Group related ##########################
+
 # Get an instance of a logger
 logger = logging.getLogger(__name__)
 
@@ -802,6 +810,11 @@ def send_shared_link(request):
                 send_failed.append(to_email)
 
         if len(send_success) > 0:
+######################### Start PingAn Group related ########################
+            token = file_shared_link.rstrip('/').split('/')[-1]
+            share_link = FileShare.objects.get_valid_file_link_by_token(token)
+            FileShareReceiver.objects.batch_add_emails(share_link, send_success)
+######################### End PingAn Group related ##########################
             data = json.dumps({"send_success": send_success, "send_failed": send_failed})
             return HttpResponse(data, status=200, content_type=content_type)
         else:
@@ -973,6 +986,9 @@ def ajax_get_upload_link(request):
             token = l[0].token
             data['upload_link'] = gen_shared_upload_link(token)
             data['token'] = token
+######################### Start PingAn Group related ########################
+            data['password'] = l[0].get_decoded_password_str()
+######################### End PingAn Group related ##########################
 
         return HttpResponse(json.dumps(data), content_type=content_type)
 
@@ -1037,7 +1053,12 @@ def ajax_get_upload_link(request):
             token = uls.token
 
         shared_upload_link = gen_shared_upload_link(token)
-        data = json.dumps({'token': token, 'upload_link': shared_upload_link})
+        data = json.dumps({'token': token,
+                           'upload_link': shared_upload_link,
+######################### Start PingAn Group related ########################
+                           'password': uls.get_decoded_password_str(),
+######################### End PingAn Group related ##########################
+                       })
 
         return HttpResponse(data, content_type=content_type)
 
@@ -1103,10 +1124,21 @@ def ajax_get_download_link(request):
 
         data = {}
         if len(l) > 0:
-            token = l[0].token
-            data['download_link'] = gen_shared_link(token, l[0].s_type)
-            data['token'] = token
-            data['is_expired'] = l[0].is_expired()
+######################### Start PingAn Group related ########################
+            if l[0].pass_verify():
+                token = l[0].token
+                data['download_link'] = gen_shared_link(token, l[0].s_type)
+                data['token'] = token
+                data['is_expired'] = l[0].is_expired()
+                data['password'] = str(l[0].get_decoded_password_str())
+            else:
+                fs_status = l[0].get_status()
+                if fs_status is not None:
+                    data = {'token': '', 'download_link': '', 'is_expired': False,
+                            'status': str(fs_status),
+                            'status_str': l[0].get_status_str() +
+                            u'<a href="%s">查看详情。</a>' % reverse('list_shared_links')}
+######################### End PingAn Group related ##########################
 
         return HttpResponse(json.dumps(data), content_type=content_type)
 
@@ -1137,12 +1169,24 @@ def ajax_get_download_link(request):
         try:
             expire_days = int(request.POST.get('expire_days', 0))
         except ValueError:
-            expire_days = 0
+######################### Start PingAn Group related ########################
+            err = _('Invalid arguments') # TODO: move to CE
+            data = json.dumps({'error': err})
+            return HttpResponse(data, status=400, content_type=content_type)
+######################### End PingAn Group related ##########################
 
         if expire_days <= 0:
-            expire_date = None
+######################### Start PingAn Group related ########################
+            err = _('Expiration days should be more than 0.') # TODO: move to CE
+            data = json.dumps({'error': err})
+            return HttpResponse(data, status=400, content_type=content_type)
+        elif expire_days > SHARE_ACCESS_EXPIRATION:
+            err = _('Expiration days should be less than %d.') % SHARE_ACCESS_EXPIRATION
+            data = json.dumps({'error': err})
+            return HttpResponse(data, status=400, content_type=content_type)
         else:
             expire_date = timezone.now() + relativedelta(days=expire_days)
+######################### End PingAn Group related ##########################
 
         # resource check
         try:
@@ -1185,6 +1229,12 @@ def ajax_get_download_link(request):
                 if is_org_context(request):
                     org_id = request.user.org.org_id
                     OrgFileShare.objects.set_org_file_share(org_id, fs)
+
+######################### Start PingAn Group related ########################
+                if ENABLE_FILESHARE_CHECK:
+                    from .share_link_checking import check_share_link
+                    return check_share_link(request, fs, repo)
+######################### End PingAn Group related ##########################
         else:
             fs = FileShare.objects.get_dir_link_by_path(username, repo_id, path)
             if fs is None:
@@ -1196,7 +1246,12 @@ def ajax_get_download_link(request):
 
         token = fs.token
         shared_link = gen_shared_link(token, fs.s_type)
-        data = json.dumps({'token': token, 'download_link': shared_link})
+        data = json.dumps({'token': token,
+                           'download_link': shared_link,
+######################### Start PingAn Group related ########################
+                           'password': passwd,
+######################### End PingAn Group related ##########################
+                       })
         return HttpResponse(data, content_type=content_type)
 
 @login_required_ajax

@@ -417,7 +417,7 @@
     <h3 class="hd" id="dialogTitle"><%= title %></h3>
     <div id="share-tabs" class="left-right-tabs ovhd">
         <ul class="left-right-tabs-nav fleft">
-            <% if (!repo_encrypted) { %>
+            <% if (!repo_encrypted && !is_dir) { %>
             <li class="tab"><a href="#download-link-share" class="a">{% trans "Download Link" %}</a></li>
             <% } %>
             <% if (is_dir) { %>
@@ -455,7 +455,7 @@
                         <span class="checkbox-option vam">{% trans "Add auto expiration"%}</span>
                     </label>
                     <div class="hide">
-                        <label for="expire-days">{% trans "Days" %}</label><br />
+                        <label for="expire-days">{% trans "Expiration Days" %}</label><span class="tip">{% blocktrans %}({{share_access_expirate_days}} days maximum){% endblocktrans %}</span><br />
                         <input type="text" name="expire_days" class="input" id="expire-days" />
                     </div>
                     <p class="error hide"></p>
@@ -469,6 +469,8 @@
                         <dt>{% trans "Direct Download Link: " %}</dt>
                         <dd id="direct-dl-link"></dd>
                         <% } %>
+                        <dt>{% trans "Password: " %}</dt>
+                        <dd id="download-link-password"></dd>
                     </dl>
                     <button id="send-download-link">{% trans 'Send' %}</button>
                     <button id="delete-download-link">{% trans 'Delete' %}</button>
@@ -509,7 +511,9 @@
                     <input type="submit" value="{% trans 'Generate'%}" />
                 </form>
                 <div id="upload-link-operations" class="hide">
-                    <p><span class="vam">{% trans 'Upload Link: ' %}</span><span id="upload-link"></span><!--input type="text" readonly="readonly" id="shared-link-text" class="vam" /--></p>
+                    <p><span class="vam">{% trans 'Upload Link: ' %}</span><span id="upload-link"></span><br>
+                        <span class="vam">{% trans 'Password: ' %}</span><span id="upload-link-password"></span>
+                    </p>
                     <button id="send-upload-link">{% trans 'Send' %}</button>
                     <button id="delete-upload-link">{% trans 'Delete' %}</button>
                     <form id="send-upload-link-form" action="" class="hide">
@@ -685,6 +689,11 @@
         <li class="tab<% if (cur_tab == 'devices') { %> tab-cur<% } %>">
             <a href="{{ SITE_ROOT }}#devices/"><span aria-hidden="true" class="sf2-icon-monitor"></span>{% trans "Devices" %}</a>
         </li>
+{% comment "Start PingAn Group related" %}{% endcomment %}
+        <% if (is_file_link_reviser) { %>
+        <li class="tab"><a href="{{ SITE_ROOT }}share/links/verify/" class="link-audit">{% trans "Links Audit" %}</a></li>
+        <% } %>
+{% comment "End PingAn Group related" %}{% endcomment %}
     </ul>
 
     <h3 class="hd">{% trans "Share Admin" %}</h3>

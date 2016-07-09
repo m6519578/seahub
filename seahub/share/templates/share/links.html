@@ -17,8 +17,9 @@
         <table>
             <tr>
                 <th width="4%"><!--icon--></th>
-                <th width="40%" class="by-name cspt">{% trans "Name"%} <span class="sort-icon hide"></span></th>
+                <th width="27%" class="by-name cspt">{% trans "Name"%} <span class="sort-icon hide"></span></th>
                 <th width="24%">{% trans "Library"%}</th>
+                <th width="13%">{% trans "Status"%}</th>
                 <th width="10%">{% trans "Visits"%}</th>
                 <th width="12%" class="by-time cspt">{% trans "Expiration"%} <span class="sort-icon hide"></span></th>
                 <th width="10%"><!--Operations--></th>
@@ -33,6 +34,9 @@
                 <td><a href="{% url 'view_common_lib_dir' fs.repo.id fs.path|strip_slash %}">{{ fs.filename }}</a></td>
                 {% endif %}
                 <td><a href="{% url 'view_common_lib_dir' fs.repo.id '' %}">{{ fs.repo.name }}</a></td>
+                <td>
+                    <a href="#" class="stats" data-str="{{ fs.get_verbose_status_str }}">{{ fs.get_short_status_str }}</a>
+                </td>
                 <td>{{ fs.view_cnt }}</td>
                 {% if fs.expire_date %}
                 {% if fs.is_expired %}
@@ -44,7 +48,7 @@
                 <td>--</td>
                 {% endif %}
                 <td>
-                    <a href="#" class="sf2-icon-link view-link op-icon vh" data-link="{{ fs.shared_link }}" title="{% trans "View"%}"></a>
+                    <a href="#" class="sf2-icon-link view-link op-icon vh" data-link="{% if fs.pass_verify %}{{ fs.shared_link }}{% else %}{{ fs.get_status_str }}{% endif %}" title="{% trans "View"%}"></a>
                     <a href="#" class="sf2-icon-delete rm-link op-icon vh" data-token="{{ fs.token }}" title="{% trans "Remove"%}"></a>
                 </td>
             </tr>
@@ -63,9 +67,10 @@
         <table>
             <tr>
                 <th width="4%"><!--icon--></th>
-                <th width="44%">{% trans "Name"%}</th>
+                <th width="34%">{% trans "Name"%}</th>
                 <th width="25%">{% trans "Library"%}</th>
-                <th width="12%">{% trans "Visits"%}</th>
+                <th width="14%">{% trans "Password"%}</th>
+                <th width="8%">{% trans "Visits"%}</th>
                 <th width="15%">{% trans "Operations"%}</th>
             </tr>
             {% for link in uploadlinks %}
@@ -73,6 +78,13 @@
                 <td class="alc"><img src="{{ MEDIA_URL }}img/folder-24.png" alt="{% trans "Directory icon"%}" /></td>
                 <td><a href="{% url 'view_common_lib_dir' link.repo.id link.path|strip_slash %}">{{ link.dir_name }}</a></td>
                 <td><a href="{% url 'view_common_lib_dir' link.repo.id '' %}">{{ link.repo.name }}</a></td>
+                {% with pwd=link.get_decoded_password %}
+                {% if pwd %}
+                <td>{{ pwd }}</td>
+                {% else %}
+                <td>--</td>
+                {% endif %}
+                {% endwith %}                
                 <td>{{ link.view_cnt }}</td>
                 <td>
                     <a href="#" class="sf2-icon-link view-link op-icon vh" data-link="{{ link.shared_link }}" title="{% trans "View"%}"></a>
@@ -90,6 +102,7 @@
     </div>
 </div>
 <input type="text" readonly="readonly" value="" id="shared-link" class="hide" />
+<div id="shared-link-stats" class="hide"></div>
 {% endblock %}
 
 {% block extra_script %}{{block.super}}
@@ -130,6 +143,22 @@ $('.rm-link, .rm-upload-link').click(function() {
 $('#shared-link').click(function() {
     $(this).select();
 });
+
+{% comment "Start PingAn Group related" %}{% endcomment %}
+$('.stats').click(function() {
+    var ul = '<ul>';
+    $.each($(this).attr('data-str').split(';'), function(idx, val) {
+        ul = ul + '<li>' + val + '</li>';
+    });
+
+    ul = ul + '</ul>';
+
+    $('#shared-link-stats').html(ul).css('width', '600px')
+           .css('height', '250px').modal();
+    return false;
+});
+{% comment "End PingAn Group related" %}{% endcomment %}
+
 {% endif %}
 
 {% if fileshares %}

@@ -32,6 +32,9 @@
                 {% elif notice.is_repo_share_msg %}
                 <p class="brief">{{ notice.format_repo_share_msg|safe }}</p>
 
+                {% elif notice.is_file_shared_link_verify_msg %}
+                <p class="brief">{{ notice.format_file_shared_link_verify_msg|safe }}</p>
+
                 {% elif notice.is_repo_share_to_group_msg %}
                 <p class="brief">{{ notice.format_repo_share_to_group_msg|safe }}</p>
 

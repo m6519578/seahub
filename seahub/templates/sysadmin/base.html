@@ -25,6 +25,11 @@
         <li class="tab {% block cur_groups %}{% endblock %}">
             <a href="{{ SITE_ROOT }}sys/groupadmin/"><span class="sf2-icon-group"></span>{% trans "Groups" %}</a>
         </li>
+{% comment "Start PingAn Group related" %}{% endcomment %}
+        <li class="tab {% block cur_revisers %}{% endblock %}">
+            <a href="{% url "sys_reviser_admin" %}" class="org">{% trans "Revisers" %}</a>
+        </li>
+{% comment "End PingAn Group related" %}{% endcomment %}
         {% if multi_tenancy %}
         <li class="tab {% block cur_org %}{% endblock %}">
             <a href="{{ SITE_ROOT }}sys/orgadmin/"><span class="sf2-icon-organization"></span>{% trans "Organizations" %}</a>
@@ -39,7 +44,9 @@
             <a href="{{ SITE_ROOT }}sys/notificationadmin/"><span class="sf2-icon-msgs"></span>{% trans "Notifications" %}</a>
         </li>
         <li class="tab {% block cur_links %}{% endblock %}">
-            <a href="{{ SITE_ROOT }}sys/publinkadmin/"><span class="sf2-icon-link"></span>{% trans "Links" %}</a>
+{% comment "Start PingAn Group related" %}{% endcomment %}
+            <a href="{{ SITE_ROOT }}sys/download-links-report/"><span class="sf2-icon-link"></span>{% trans "Links" %}</a>
+{% comment "End PingAn Group related" %}{% endcomment %}
         </li>
         {% if traffic_stats_enabled %}
         <li class="tab {% block cur_traffic %}{% endblock %}">

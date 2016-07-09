@@ -1,0 +1,124 @@
+{% extends 'home_base.html' %}
+{% load seahub_tags i18n %}
+{% load url from future %}
+
+{% block sub_title %}{% trans "Link Audit - Share" %} - {% endblock %}
+
+{% block cur_file_share_verify %}tab-cur{% endblock %}
+
+{% block right_panel %}
+<div id="tabs" class="tab-tabs">
+    <ul class="tab-tabs-nav hd w100 ovhd">
+        <li class="tab"><a id="verifing-tab" href="#verifing-links" class="a">{% trans "Verifing Links" %}</a></li>
+        <li class="tab long-tab"><a id="verified-tab" href="#verified-links" class="a">{% trans "Verified Links" %}</a></li>
+        {% if verified_links %}
+        <div class="fright">
+            <button id="export-verified-links">{% trans "Export Excel" %}</button>
+        </div>
+        {% endif %}
+    </ul>
+    <div id="verifing-links">
+        {% if verifing_links %}
+        <table>
+            <tr>
+                <th width="4%"><!--icon--></th>
+                <th width="32%">{% trans "Name"%}</th>
+                <th width="32%">{% trans "From"%}</th>
+                <th width="32%">{% trans "Create Time"%}</th>
+            </tr>
+            {% for link in verifing_links %}
+            <tr>
+                <td class="alc"><img src="{{ MEDIA_URL }}img/file/{{ link.filename|file_icon_filter }}" alt="{% trans "File"%}" /></td>
+                <td><a href="{% url 'view_shared_file' link.token %}" target="_blank">{{ link.filename }}</a></td>
+                <td><a href="{% url 'user_profile' link.username %}" target="_blank">{{ link.username }}</a></td>
+                <td>{{ link.ctime|translate_seahub_time }}</td>
+            </tr>
+        {% endfor %}
+        </table>
+        {% else %}
+        <div class="empty-tips">
+            <h2 class="alc">{% trans "You don't have any file links need verify"%}</h2>
+        </div>
+        {% endif %}
+    </div>
+
+    <div id="verified-links" class="hide">
+        {% if verified_links %}
+        <table>
+            <tr>
+                <th width="4%"><!--icon--></th>
+                <th width="16%">{% trans "Name"%}</th>
+                <th width="12%">{% trans "From"%}</th>
+                <th width="10%">{% trans "Pass/Veto"%}</th>
+                <th width="8%">{% trans "DLP"%}</th>
+                <th width="14%">{% trans "Create Time"%}</th>
+                <th width="12%">{% trans "Expiration"%}</th>
+                <th width="12%">{% trans "First Download Time"%}</th>
+                <th width="8%">{% trans "Visits"%}</th>
+                <th width="4%"><!--icon--></th>
+            </tr>
+            {% for link in verified_links %}
+            <tr>
+                <td class="alc"><img src="{{ MEDIA_URL }}img/file/{{ link.filename|file_icon_filter }}" alt="{% trans "File"%}" /></td>
+                <td><a href="{% url 'view_shared_file' link.token %}" target="_blank">{{ link.filename }}</a></td>
+                <td><a href="{% url 'user_profile' link.username %}" target="_blank">{{ link.username }}</a></td>
+                <td>
+                    {% if link.user_pass %}
+                    {% trans "Pass"%}
+                    {% elif link.user_veto %}
+                    {% trans "Veto"%}
+                    {% endif %}
+                    <br />
+                    {{ link.verify_time|date:'Y-m-d' }}
+                </td>
+                <td>{{ link.DLP_status }}<br />{{ link.DLP_vtime|date:'Y-m-d' }}</td>
+                <td>{{ link.ctime|translate_seahub_time }}</td>
+                <td {% if link.is_expired %}class='error'{% endif %}>{{ link.expire_date|date:'Y-m-d' }}</td>
+                <td>{{ link.first_dl_time|date:'Y-m-d' }}</td>
+                <td>{{ link.view_cnt }}</td>
+                <td><img src="{{ MEDIA_URL }}img/link.png" alt="" class="view-link op-icon vh" data-link="{{ link.shared_link }}" title="{% trans "View"%}" /></td>
+            </tr>
+        {% endfor %}
+        </table>
+        {% else %}
+        <div class="empty-tips">
+            <h2 class="alc">{% trans "You don't have any file links verified"%}</h2>
+        </div>
+        {% endif %}
+    </div>
+</div>
+<input type="text" readonly="readonly" value="" id="shared-link" class="hide" />
+
+{% endblock %}
+{% block extra_script %}{{block.super}}
+<script type="text/javascript">
+{% if verified_links %}
+var cur_tab = $('.ui-tabs-selected .a'),
+    export_excel_btn = $('#export-verified-links');
+
+if (cur_tab.attr('id') == 'verifing-tab') {
+    export_excel_btn.addClass('hide');
+}
+if (cur_tab.attr('id') == 'verified-tab') {
+    export_excel_btn.removeClass('hide');
+}
+$('#verifing-tab').click(function() {
+    export_excel_btn.addClass('hide');
+});
+$('#verified-tab').click(function() {
+    export_excel_btn.removeClass('hide');
+});
+$("#export-verified-links").click(function() {
+    location.href = "{% url 'export_verified_links' %}";
+});
+{% endif %}
+
+$(".view-link").click(function() {
+    var link = $(this).attr('data-link');
+    $('#shared-link').before('<p class="hide">' + link + '</p>')
+    .val(link).css('width', $('#shared-link').prev().width() + 2)
+    .modal({focus:false});
+    $('#shared-link').prev().remove();
+});
+</script>
+{% endblock %}

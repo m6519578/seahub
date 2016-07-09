@@ -883,6 +883,11 @@ def libraries(request):
             'is_pro': True if is_pro_version() else False,
             'file_audit_enabled': FILE_AUDIT_ENABLED,
             'can_add_pub_repo': can_add_pub_repo,
+######################### Start PingAn Group related ########################
+            'share_access_force_passwd': settings.SHARE_ACCESS_FORCE_PASSWD,
+            'share_access_force_expirate': True if settings.SHARE_ACCESS_EXPIRATION > 0 else False,
+            'share_access_expirate_days': settings.SHARE_ACCESS_EXPIRATION,
+######################### End PingAn Group related ##########################
             }, context_instance=RequestContext(request))
 
 @login_required

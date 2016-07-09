@@ -71,6 +71,13 @@ from seahub.settings import FILE_ENCODING_LIST, FILE_PREVIEW_MAX_SIZE, \
 
 from seahub.views import get_unencry_rw_repos_by_user
 
+######################### Start PingAn Group related ########################
+from seahub.share.models import FileShareDownloads
+from seahub.share.decorators_for_pingan import (
+    share_link_approval_for_pingan, share_link_passwd_check_for_pingan)
+from seahub.signals import file_edited
+######################### End PingAn Group related ##########################
+
 # Get an instance of a logger
 logger = logging.getLogger(__name__)
 
@@ -721,6 +728,11 @@ def _download_file_from_share_link(request, fileshare):
         messages.error(request, _(u'Unable to download file, share link traffic is used up.'))
         return HttpResponseRedirect(next)
 
+######################### Start PingAn Group related ########################
+    # record donwload time
+    FileShareDownloads.objects.add(fileshare, username)
+######################### End PingAn Group related ##########################
+
     send_file_access_msg(request, repo, real_path, 'share-link')
     try:
         file_size = seafile_api.get_file_size(repo.store_id, repo.version,
@@ -736,25 +748,22 @@ def _download_file_from_share_link(request, fileshare):
     return HttpResponseRedirect(gen_file_get_url(dl_token, filename))
 
 @share_link_audit
-def view_shared_file(request, fileshare):
+@share_link_approval_for_pingan
+@share_link_passwd_check_for_pingan
+def view_shared_file(request, fileshare, *args, **kwargs):
     """
     View file via shared link.
     Download share file if `dl` in request param.
     View raw share file if `raw` in request param.
     """
     token = fileshare.token
-
-    password_check_passed, err_msg = check_share_link_common(request, fileshare)
-    if not password_check_passed:
-        d = {'token': token, 'view_name': 'view_shared_file', 'err_msg': err_msg}
-        return render_to_response('share_access_validation.html', d,
-                                  context_instance=RequestContext(request))
-
     shared_by = fileshare.username
     repo_id = fileshare.repo_id
     repo = get_repo(repo_id)
     if not repo:
-        raise Http404
+######################### Start PingAn Group related ########################
+        return render_error(request, _(u'该文件外链已失效。'))
+######################### End PingAn Group related ##########################
 
     path = fileshare.path.rstrip('/')  # Normalize file path
     obj_id = seafile_api.get_file_id_by_path(repo_id, path)
@@ -821,7 +830,8 @@ def view_shared_file(request, fileshare):
     save_to_link = reverse('save_shared_link') + '?t=' + token
     traffic_over_limit = user_traffic_over_limit(shared_by)
 
-    return render_to_response('shared_file_view.html', {
+######################### Start PingAn Group related ########################
+    resp_kwargs = {
             'repo': repo,
             'obj_id': obj_id,
             'path': path,
@@ -841,7 +851,11 @@ def view_shared_file(request, fileshare):
             'accessible_repos': accessible_repos,
             'save_to_link': save_to_link,
             'traffic_over_limit': traffic_over_limit,
-            }, context_instance=RequestContext(request))
+    }
+    resp_kwargs.update(kwargs)  # append args from `shared_link_approval`
+    return render_to_response('shared_file_view.html', resp_kwargs,
+                              context_instance=RequestContext(request))
+######################### End PingAn Group related ##########################
 
 def view_raw_shared_file(request, token, obj_id, file_name):
     """Returns raw content of a shared file.
@@ -1108,6 +1122,11 @@ def file_edit_submit(request, repo_id):
         seafserv_threaded_rpc.put_file(repo_id, tmpfile, parent_dir,
                                  filename, username, head_id)
         remove_tmp_file()
+######################### Start PingAn Group related ########################
+        file_edited.send(sender=None, repo_id=repo_id,
+                         parent_dir=parent_dir, file_name=filename,
+                         username=username)
+######################### End PingAn Group related ##########################
         return HttpResponse(json.dumps({'href': next}),
                             content_type=content_type)
     except SearpcError, e:

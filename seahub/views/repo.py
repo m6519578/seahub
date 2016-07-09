@@ -33,6 +33,10 @@ from seahub.utils import gen_file_get_url
 from seahub.utils.file_types import IMAGE
 from seahub.thumbnail.utils import get_share_link_thumbnail_src
 
+######################### Start PingAn Group related ########################
+from seahub.share.decorators_for_pingan import share_link_passwd_check_for_pingan
+######################### End PingAn Group related ##########################
+
 # Get an instance of a logger
 logger = logging.getLogger(__name__)
 
@@ -294,17 +298,8 @@ def view_shared_dir(request, fileshare):
             }, context_instance=RequestContext(request))
 
 @share_link_audit
+@share_link_passwd_check_for_pingan
 def view_shared_upload_link(request, uploadlink):
-    token = uploadlink.token
-
-    password_check_passed, err_msg = check_share_link_common(request,
-                                                             uploadlink,
-                                                             is_upload_link=True)
-    if not password_check_passed:
-        d = {'token': token, 'view_name': 'view_shared_upload_link', 'err_msg': err_msg}
-        return render_to_response('share_access_validation.html', d,
-                                  context_instance=RequestContext(request))
-
     username = uploadlink.username
     repo_id = uploadlink.repo_id
     repo = get_repo(repo_id)

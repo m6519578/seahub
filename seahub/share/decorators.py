@@ -1,8 +1,11 @@
+# -*- coding: utf-8 -*-
+
 from django.core.cache import cache
 from django.conf import settings
 from django.http import Http404
 from django.shortcuts import render_to_response
 from django.template import RequestContext
+from django.utils.translation import ugettext as _
 
 from seahub.share.models import FileShare, UploadLinkShare
 from seahub.utils import normalize_cache_key, is_pro_version
@@ -57,3 +60,4 @@ def share_link_audit(func):
             assert False, 'TODO'
 
     return _decorated
+

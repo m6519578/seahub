@@ -247,6 +247,11 @@ app["pageOptions"] = {
     repo_password_min_length: {{ repo_password_min_length }},
     share_link_password_min_length: {{ share_link_password_min_length }},
     guide_enabled: {% if guide_enabled %} true {% else %} false {% endif %},
+{% comment "Start PingAn Group related" %}{% endcomment %}
+    is_file_link_reviser: {% if user.is_file_link_reviser%} true {% else %} false {% endif %},
+    share_access_force_passwd: {% if share_access_force_passwd %} true {% else %} false {% endif %},
+    share_access_force_expirate: {% if share_access_force_expirate %} true {% else %} false {% endif %},
+{% comment "End PingAn Group related" %}{% endcomment %}
     enable_upload_folder: {% if enable_upload_folder %} true {% else %} false {% endif %},
     enable_resumable_fileupload: {% if enable_resumable_fileupload %} true {% else %} false {% endif %},
     enable_thumbnail: {% if enable_thumbnail %} true {% else %} false {% endif %},

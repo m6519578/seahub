@@ -1,0 +1,21 @@
+{% load i18n seahub_tags %}
+{% if uploads %}
+<table>
+    <tr>
+        <th width="25%">{% trans "Name" %}</th>
+        <th width="25%">{% trans "Size" %}</th>
+        <th width="25%">{% trans "Time" %}</th>
+        <th width="25%">{% trans "IP" %}</th>
+    </tr>
+    {% for u in uploads %}
+    <tr>
+        <td>{{ u.file_name }}</td>
+        <td>{{ u.file_size|filesizeformat }}</td>
+        <td>{{ u.upload_time|translate_seahub_time }}</td>
+        <td>{{ u.upload_ip }}</td>
+    </tr>
+    {% endfor %}
+</table>
+{% else %}
+<h2 class="alc">{% trans "No file uploaded"%}</h2>
+{% endif %}

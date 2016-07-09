@@ -1,0 +1,21 @@
+{% extends 'email_base.html' %}
+{% load i18n %}
+
+{% block email_con %}
+
+{% autoescape off %}
+
+<p style="color:#121214;font-size:14px;">{% trans "Hi," %}</p>
+
+<p style="font-size:14px;color:#434144;">
+{% blocktrans %}{{ email }} created a new share link, shared file: {{ file_name }}, please verify by clicking following link:{% endblocktrans%} <br />
+<a href="{{ file_shared_link }}">{{ file_shared_link }}</a>
+</p>
+
+<p style="font-size:14px;color:#434144;">
+{% blocktrans %}Before clicking the link, you need to log onto {{service_url}} first, otherwise, you would got permission error.<br />(Please use Chrome/Firefox){% endblocktrans%}
+</p>
+
+{% endautoescape %}
+
+{% endblock %}

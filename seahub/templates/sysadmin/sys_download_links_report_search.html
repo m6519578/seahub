@@ -1,0 +1,60 @@
+{% extends "sysadmin/base.html" %}
+{% load seahub_tags i18n staticfiles %}
+
+{% block cur_links %}tab-cur{% endblock %}
+
+{% block extra_style %}
+<link rel="stylesheet" type="text/css" href="{% static "css/select2-3.5.2.css" %}" />
+<link rel="stylesheet" type="text/css" href="{% static "css/select2.custom.css" %}" />
+{% endblock %}
+
+{% block right_panel %}
+<h3>{% trans "Search Download Links"%}</h3>
+
+<form id="search-links-form" method="get" action=".">
+    <label>{% trans "Name" %}</label><input type="text" name="name" class="input" value="{{name}}"/><br />
+    <input type="submit" value="{% trans "Submit" %}" class="submit" />
+</form>
+<br />
+<div class="hd ovhd">
+    <h3 class="fleft">{% trans "Result" %}</h3>
+    {% if download_links %}
+    <div class="fright">
+        <button id="export-download-links">{% trans "Export Download Links" %}</button>
+    </div>
+    {% endif %}
+</div>
+
+{% if download_links %}
+    {% include "sysadmin/sys_download_links_report_table.html" %}
+
+    <input type="text" readonly="readonly" value="" id="shared-link" class="hide" />
+    <div id="shared-link-stats" class="hide"></div>
+{% else %}
+    <div class="empty-tips">
+        <h2 class="alc">{% trans "No download links"%}</h2>
+    </div>
+{% endif %}
+
+{% endblock %}
+
+{% block extra_script %}
+<script type="text/javascript" src="{% static "scripts/lib/select2-3.5.2.js" %}"></script>
+<script type="text/javascript">
+$('#search-links-form').submit(function() {
+    var form = $(this),
+        name = $.trim($('[name="name"]', form).val());
+
+    if (!name) {
+        return false;
+    }
+});
+
+{% if download_links %}
+{% include "sysadmin/sys_links_report_js.html" %}
+$("#export-download-links").click(function() {
+    location.href = "{% url 'sys_links_report_export_excel' %}" + "?type=download&search_user=" + "{{name}}";
+});
+{% endif %}
+</script>
+{% endblock %}

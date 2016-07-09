@@ -32,11 +32,26 @@
         </div>
 
         <div class="fright">
+{% comment "Start PingAn Group related" %}{% endcomment %}
+            {% if need_verify %}
+            <span id="pass" class="hide" style="color: #60b044;">Review result: This file is passed by you.</span>
+
+            <span id="veto" class="hide" style="color: #900;">Review result: This file is vetoed by you.</span>
+            <span class="review-btns hide">
+                <button id="pass-btn">{% trans "Approve"%}</button>
+                <button id="veto-btn" style="color: #900;">{% trans "Veto"%}</button>
+            </span>
+            {% else %}
+
             {% if request.user.is_authenticated and request.user.username != shared_by %}
               {% if save_to_link %}
               <button data="{{save_to_link}}" id="save" class="btn">{% trans "Save to..."%}</button>
               {% endif %}
             {% endif %}
+
+            {% endif %}
+{% comment "End PingAn Group related" %}{% endcomment %}
+
             {% if not traffic_over_limit %}
               <a href="{% if from_shared_dir %}?p={{path|urlencode}}&dl=1{% else %}?dl=1{% endif %}" class="obv-btn">{% trans "Download" %} ({{file_size|filesizeformat}})</a>
             {% endif %}
@@ -128,5 +143,79 @@ $('#file-save-form').submit(function() {
 });
 {% endif %}
 {% include "snippets/file_content_js.html" %}
+
+{% comment "Start PingAn Group related" %}{% endcomment %}
+$(function() {
+    var show_pass = function() {
+        $('#pass').show();
+        $('#veto').hide();
+        $('.review-btns').hide();
+    };
+
+    var show_veto = function() {
+        $('#pass').hide();
+        $('#veto').show();
+        $('.review-btns').hide();
+    };
+
+    var show_review_btns = function() {
+        $('#pass').hide();
+        $('#veto').hide();
+        $('.review-btns').show();
+    };
+
+    {% if user_pass %}
+        show_pass();
+    {% elif user_veto %}
+        show_veto();
+    {% else %}
+        show_review_btns();
+    {% endif %}
+
+    $('#pass-btn').click(function() {
+        $.ajax({
+            url: '{% url "ajax_change_dl_link_status" %}',
+            type: 'POST',
+            dataType: 'html',
+            beforeSend: prepareCSRFToken,
+            data: {
+                's': 1,
+                't': "{{shared_token}}"
+            },
+            success: function(data) {
+                feedback('success', 'success');
+                show_pass();
+            },
+            error: function(data) {
+                feedback('error', 'error');
+            }
+        });
+        return false;
+    });
+
+    $('#veto-btn').click(function() {
+        $.ajax({
+            url: '{% url "ajax_change_dl_link_status" %}',
+            type: 'POST',
+            dataType: 'html',
+            beforeSend: prepareCSRFToken,
+            data: {
+                's': 2,
+                't': "{{shared_token}}"
+            },
+            success: function(data) {
+                feedback('success', 'success');
+                show_veto();
+            },
+            error: function(data) {
+                feedback('error', 'error');
+            }
+        });
+        return false;
+    });
+    
+});
+{% comment "End PingAn Group related" %}{% endcomment %}
+
 </script>
 {% endblock %}

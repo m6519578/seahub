@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block main_panel %}
+<div class="wide-panel">
+    <p class="access-notice">{% trans "Please input the password if you want to browse the shared file/directory. And the password will be kept on the server for only 1 hour." %}</p>
+    <form action="{% url view_name token %}" method="post" id="share-passwd-form">{% csrf_token %}
+        <label>{% trans "Password: " %}</label><br />
+        <input type="password" name="password" autofocus value="{{password}}" class="input" /><br/>
+
+        {% if enable_share_link_verify_code %}
+        <label>{% trans "Email: "%}</label><br />
+        <input type="text" name="email" class="input" /><br />
+        <button id="code-btn">{% trans "Get verify code" %}</button><br/>
+        <label>{% trans "Verify code:" %}</label><br />
+        <input type="text" name="verify_code" value="{{verify_code}}" class="input" /><br/>
+        {% endif %}
+
+        {% if form.captcha %}
+        <div id="captcha-container">
+        <label>{% trans "CAPTCHA:" %}</label><br />
+        {{ form.captcha }}
+        <p class="clear"><a href="#" id="refresh-captcha">{% trans "Not clear? Refresh it." %}</a></p>
+        </div>
+        {% endif %}
+
+        {% if form.errors %}
+        {% if form.captcha.errors %}
+        <p class="error">{{ form.captcha.errors}}</p>
+        {% else %}
+        <p class="error">{% trans "Incorrect password or verify code" %}</p>
+        {% endif %}
+        {% else %}
+        <p class="error hide"></p>
+        {% endif %}
+
+        <input type="submit" value="{% trans "Submit" %}" />
+    </form>
+</div>
+{% endblock %}
+{% block extra_script %}
+<script type="text/javascript">
+$('#share-passwd-form').submit(function() {
+    var form = $(this),
+        pwd = $('[name="password"]', form).val(),
+        verify_code = $('[name="verify_code"]', form).val(),
+        err = $('.error',form);
+    if (!$.trim(pwd)) {
+        err.html("{% trans "Please enter the password." %}").removeClass('hide');
+        return false;
+    }
+    {% if enable_share_link_verify_code %}
+    if (!$.trim(verify_code)) {
+        err.html("{% trans "Please enter verify code." %}").removeClass('hide');
+        return false;
+    }
+    {% endif %}
+});
+
+$('#captcha-container').outerWidth($('.input').outerWidth());
+function setCaptchaInputWidth() {
+    $('#id_captcha_1').css({'width': $('.input').outerWidth() - $('.captcha').width() - 10});
+}
+$(window).load(setCaptchaInputWidth);
+$('.captcha').load(setCaptchaInputWidth);
+$('#refresh-captcha').parent().css({'text-align':'right', 'margin':0});
+$('#refresh-captcha').click(function() {
+    $.ajax({
+        url: '{% url 'captcha-refresh' %}',
+        dataType:'json',
+        cache:false,
+        success: function(data) {
+            $('.captcha').attr('src', data['image_url']); 
+            $('#id_captcha_0').val(data['key']);
+        },
+        error: function() {
+            $('.error').removeClass('hide').html("{% trans "Failed to refresh the CAPTCHA, please try again later." %}");
+        }
+    });
+    return false;
+});
+
+ {% if enable_share_link_verify_code %}
+ $('#code-btn').click(function() {
+     var email = $('input[name="email"]').val();
+     if (!email) {
+         return false;
+     }
+
+     var $this = $(this);
+     var originalText = this.innerHTML;  // Remember the original text content
+     var seconds = 60;
+     
+     $this.prop('disabled', true).addClass('btn-disabled');
+     $this.text(originalText + '(' + seconds + 's)');
+     // do a set interval, using an interval of 1000 milliseconds
+     //     and clear it after the number of seconds counts down to 0
+     var interval = setInterval(function() {
+         // decrement the seconds and update the text
+         seconds = seconds - 1;
+         $this.text( originalText + ' (' + seconds + 's)');
+         if (seconds == 0) {  // once seconds is 0...
+             $this.prop('disabled', false).removeClass('btn-disabled')
+                  .text(originalText);   //reset to original text
+             clearInterval(interval);  // clear interval
+         }
+     }, 1000);
+
+     $.ajax({
+         url: "{% url "ajax_get_link_verify_code" %}",
+         type: 'POST',
+         cache: false,
+         beforeSend: prepareCSRFToken,
+         data: {
+             token: "{{token}}",
+             email: email
+         },
+         success: function() {
+             feedback("{% trans "successfully sent verify code" %}", 'success');
+         },
+         error: ajaxErrorHandler
+     });
+
+     return false;
+ });
+ {% endif %}
+</script>
+{% endblock %}

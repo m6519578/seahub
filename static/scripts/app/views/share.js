@@ -21,6 +21,10 @@ define([
             this.dirent_path = options.dirent_path;
             this.obj_name = options.obj_name;
             this.is_dir = options.is_dir;
+///////////////////////// Start PingAn Group related ////////////////////////
+            this.force_passwd = app.pageOptions.share_access_force_passwd;
+            this.force_expirate = app.pageOptions.share_access_force_expirate;
+///////////////////////// End PingAn Group related //////////////////////////
 
             this.render();
 
@@ -29,7 +33,9 @@ define([
 
             this.$("#share-tabs").tabs();
 
-            if (!this.repo_encrypted) {
+///////////////////////// Start PingAn Group related ////////////////////////
+            if (!this.repo_encrypted && !this.is_dir) {
+///////////////////////// End PingAn Group related //////////////////////////
                 this.downloadLinkPanelInit();
             }
             if (this.is_dir) {
@@ -108,20 +114,40 @@ define([
             var after_op_success = function(data) {
 
                 _this.$('.loading-tip').hide();
+///////////////////////// Start PingAn Group related ////////////////////////
+                if (!data.status || data.status == '1') {
+                    if (data['download_link']) {
+                        _this.download_link = data["download_link"]; // for 'link send'
+                        _this.download_link_token = data["token"]; // for 'link delete'
+                        _this.$('#download-link').html(data['download_link']); // TODO:
+                        _this.$('#direct-dl-link').html(data['download_link']+'?raw=1'); // TODO:
+                        if (data['is_expired']) {
+                            _this.$('#send-download-link').addClass('hide');
+                            _this.$('#download-link, #direct-dl-link').append(' <span class="error">(' + gettext('Expired') + ')</span>');
+                        }
+                        _this.$('#download-link-password').html(data['password']);
+                        _this.$('#download-link-operations').removeClass('hide');
+                    } else {
+                        var form = _this.$('#generate-download-link-form'),
+                            password_checkbox = form.find('.checkbox-label').eq(0),
+                            expirate_checkbox = form.find('.checkbox-label').eq(1);
 
-                if (data['download_link']) {
-                    _this.download_link = data["download_link"]; // for 'link send'
-                    _this.download_link_token = data["token"]; // for 'link delete'
-                    _this.$('#download-link').html(data['download_link']);
-                    _this.$('#direct-dl-link').html(data['download_link']+'?raw=1');
-                    if (data['is_expired']) {
-                        _this.$('#send-download-link').addClass('hide');
-                        _this.$('#download-link, #direct-dl-link').append(' <span class="error">(' + gettext('Expired') + ')</span>');
+                        if (_this.force_passwd) {
+                            password_checkbox.hide();
+                            password_checkbox.next().show();
+                        }
+                        if (_this.force_expirate) {
+                            expirate_checkbox.hide();
+                            expirate_checkbox.next().show();
+                        }
+                        form.removeClass('hide');
                     }
-                    _this.$('#download-link-operations').removeClass('hide');
                 } else {
-                    _this.$('#generate-download-link-form').removeClass('hide');
+                    // verifing or veto
+                    $('#download-link-share').html(data.status_str);
                 }
+///////////////////////// End PingAn Group related //////////////////////////
+
             };
             // check if downloadLink exists
             Common.ajaxGet({
@@ -191,8 +217,9 @@ define([
                     set_expiration = set_expiration_checkbox.prop('checked');
             }
             var post_data = {};
-
-            if (use_passwd) {
+///////////////////////// Start PingAn Group related ////////////////////////
+            if (this.force_passwd || use_passwd) {
+///////////////////////// End PingAn Group related //////////////////////////
                 var passwd_input = $('[name="password"]', form),
                     passwd_again_input = $('[name="password_again"]', form),
                     passwd = $.trim(passwd_input.val()),
@@ -219,19 +246,25 @@ define([
                 post_data["use_passwd"] = 0;
             }
 
-            if (set_expiration) { // for upload link, 'set_expiration' is undefined
+///////////////////////// Start PingAn Group related ////////////////////////
+            if (link_type == 'download') {
+            if (this.force_expirate || set_expiration) { // for upload link, 'set_expiration' is undefined
+///////////////////////// End PingAn Group related //////////////////////////
                 var expire_days_input = $('[name="expire_days"]', form),
                     expire_days = $.trim(expire_days_input.val());
                 if (!expire_days) {
                     Common.showFormError(form_id, gettext("Please enter days."));
                     return false;
                 }
-                if (Math.floor(expire_days) != expire_days || !$.isNumeric(expire_days)) {
+                if (Math.floor(expire_days) != expire_days || !$.isNumeric(expire_days || expire_days <= 0)) {
                     Common.showFormError(form_id, gettext("Please enter valid days"));
                     return false;
                 };
                 post_data["expire_days"] = expire_days;
             }
+///////////////////////// Start PingAn Group related ////////////////////////
+            }
+///////////////////////// End PingAn Group related //////////////////////////
 
             $('.error', form).addClass('hide').html('');
             var gen_btn = $('[type="submit"]', form);
@@ -252,7 +285,9 @@ define([
                 form.addClass('hide');
                 // restore form state
                 Common.enableButton(gen_btn);
-                if (use_passwd) {
+///////////////////////// Start PingAn Group related ////////////////////////
+                if (_this.force_passwd || use_passwd) {
+///////////////////////// End PingAn Group related //////////////////////////
                     use_passwd_checkbox.prop('checked', false)
                         .parent().removeClass('checkbox-checked')
                         // hide password input
@@ -260,22 +295,39 @@ define([
                     passwd_input.val('');
                     passwd_again_input.val('');
                 }
-                if (set_expiration) {
-                    set_expiration_checkbox.prop('checked', false)
-                        .parent().removeClass('checkbox-checked')
-                        // hide 'day' input
-                        .end().closest('.checkbox-label').next().addClass('hide');
-                    expire_days_input.val('');
-                }
 
                 if (link_type == 'download') {
+///////////////////////// Start PingAn Group related ////////////////////////
+                    if (_this.force_expirate || set_expiration) {
+                        set_expiration_checkbox.prop('checked', false)
+                            .parent().removeClass('checkbox-checked')
+                        // hide 'day' input
+                            .end().closest('.checkbox-label').next().addClass('hide');
+                        expire_days_input.val('');
+                    }
+
+                    if (!data.status || data.status == '1') {
+                        // not enable sharelink verify or pass verify
+///////////////////////// End PingAn Group related //////////////////////////
                     _this.$('#download-link').html(data["download_link"]); // TODO: add 'click & select' func
                     _this.$('#direct-dl-link').html(data['download_link'] + '?raw=1');
                     _this.download_link = data["download_link"]; // for 'link send'
                     _this.download_link_token = data["token"]; // for 'link delete'
+///////////////////////// Start PingAn Group related ////////////////////////
+                    _this.$('#download-link-password').html(data['password']);
+///////////////////////// End PingAn Group related //////////////////////////
                     _this.$('#download-link-operations').removeClass('hide');
+///////////////////////// Start PingAn Group related ////////////////////////
+                    } else {
+                        // verifing
+                        $('#download-link-share').html(data.status_str);
+                    }
+///////////////////////// End PingAn Group related //////////////////////////
                 } else {
                     _this.$('#upload-link').html(data["upload_link"]);
+///////////////////////// Start PingAn Group related ////////////////////////
+                    _this.$('#upload-link-password').html(data["password"]);
+///////////////////////// End PingAn Group related //////////////////////////
                     _this.upload_link = data["upload_link"];
                     _this.upload_link_token = data["token"];
                     _this.$('#upload-link-operations').removeClass('hide');
@@ -403,8 +455,22 @@ define([
                     _this.upload_link_token = data["token"];
                     _this.upload_link = data["upload_link"];
                     _this.$('#upload-link').html(data["upload_link"]); // TODO
+///////////////////////// Start PingAn Group related ////////////////////////
+                    _this.$('#upload-link-password').html(data['password']);
+///////////////////////// End PingAn Group related //////////////////////////
                     _this.$('#upload-link-operations').removeClass('hide');
-                } else {
+                }
+///////////////////////// Start PingAn Group related ////////////////////////
+                else if (_this.force_passwd) {
+                    var form = _this.$('#generate-upload-link-form'),
+                        password_checkbox = form.find('.checkbox-label').first();
+
+                    form.removeClass('hide');
+                    password_checkbox.hide();
+                    password_checkbox.next().show();
+                }
+///////////////////////// End PingAn Group related //////////////////////////
+                else {
                     _this.$('#generate-upload-link-form').removeClass('hide');
                 }
             };

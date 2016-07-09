@@ -1,0 +1,44 @@
+{% load i18n seahub_tags %}
+
+<table>
+    <tr>
+        <th width="4%"><!--icon--></th>
+        <th width="22%">{% trans "Name"%}</th>
+        <th width="20%">{% trans "From"%}</th>
+        <th width="12%">{% trans "Status"%}</th>
+        <th width="13%">{% trans "First Download"%}</th>
+        <th width="10%">{% trans "Downloads"%}</th>
+        <th width="15%">{% trans "Expiration"%}</th>
+        <th width="4%"><!--icon--></th>
+    </tr>
+    {% for link in download_links %}
+    <tr>
+        <td class="alc"><img src="{{ MEDIA_URL }}img/file/{{ link.filename|file_icon_filter }}" alt="{% trans "File"%}" /></td>
+        <td><a href="{% url 'view_shared_file' link.token %}" target="_blank">{{ link.filename }}</a></td>
+        <td><a href="{% url 'user_profile' link.username %}" target="_blank">{{ link.username }}</a></td>
+        <td>
+            {% with s=link.get_short_status_str v=link.get_verbose_status_str%}
+            {% if s %}
+            <a href="#" class="stats" data-str="{{ v }}">{{ s }}</a>
+            {% else %}
+            {% trans "No verify" %}
+            {% endif %}
+            {% endwith %}
+        </td>
+        {% if link.first_dl_time %}
+        <td>{{link.first_dl_time|date:'Y-m-d H:i:s'}}</td>
+        {% else %}
+        <td>－－</td>
+        {% endif %}
+
+        {% if link.dl_cnt %}
+        <td>{{ link.dl_cnt }}</td>
+        {% else %}
+        <td>－－</td>
+        {% endif %}
+
+        <td {% if link.is_expired %}class='error'{% endif %}>{{ link.expire_date|date:'Y-m-d H:i:s' }}</td>
+        <td><img src="{{ MEDIA_URL }}img/link.png" alt="" class="view-link op-icon vh" data-link="{{ link.shared_link }}" title="{% trans "View"%}" /></td>
+    </tr>
+{% endfor %}
+</table>

@@ -26,6 +26,7 @@ define([
                 'groups': app.pageOptions.groups,
                 'mods_enabled': app.pageOptions.user_mods_enabled,
                 'can_add_repo': app.pageOptions.can_add_repo,
+                'is_file_link_reviser': app.pageOptions.is_file_link_reviser,
             };
             this.render();
             this.$el.show();

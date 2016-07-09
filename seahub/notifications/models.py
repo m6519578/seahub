@@ -14,6 +14,7 @@ from seaserv import seafile_api, ccnet_api
 
 from seahub.base.fields import LowerCaseCharField
 from seahub.base.templatetags.seahub_tags import email2nickname
+from seahub.share.models import FileShare
 
 # Get an instance of a logger
 logger = logging.getLogger(__name__)
@@ -42,6 +43,7 @@ MSG_TYPE_FILE_UPLOADED = 'file_uploaded'
 MSG_TYPE_REPO_SHARE = 'repo_share'
 MSG_TYPE_REPO_SHARE_TO_GROUP = 'repo_share_to_group'
 MSG_TYPE_USER_MESSAGE = 'user_message'
+MSG_TYPE_FILE_SHARED_LINK_VERIFY = 'file_shared_link_verify'
 
 def file_uploaded_msg_to_json(file_name, repo_id, uploaded_to):
     """Encode file uploaded message to json string.
@@ -69,6 +71,9 @@ def group_join_request_to_json(username, group_id, join_request_msg):
 def add_user_to_group_to_json(group_staff, group_id):
     return json.dumps({'group_staff': group_staff,
                        'group_id': group_id})
+
+def file_shared_link_verify_msg_to_json(share_from, token):
+    return json.dumps({'share_from': share_from, 'token': token})
 
 
 class UserNotificationManager(models.Manager):
@@ -228,6 +233,17 @@ class UserNotificationManager(models.Manager):
         return self._add_user_notification(to_user,
                                            MSG_TYPE_REPO_SHARE, detail)
 
+    def add_file_shared_link_verify_msg(self, to_user, detail):
+        """Notify verifier when someone generate a file shared link
+
+        Arguments:
+        - `self`:
+        - `to_user`:
+        - `repo_id`:
+        """
+        return self._add_user_notification(to_user,
+                                           MSG_TYPE_FILE_SHARED_LINK_VERIFY, detail)
+
     def add_repo_share_to_group_msg(self, to_user, detail):
         """Notify ``to_user`` that others shared a repo to group.
 
@@ -305,6 +321,14 @@ class UserNotification(models.Model):
         - `self`:
         """
         return self.msg_type == MSG_TYPE_REPO_SHARE
+
+    def is_file_shared_link_verify_msg(self):
+        """
+
+        Arguments:
+        - `self`:
+        """
+        return self.msg_type == MSG_TYPE_FILE_SHARED_LINK_VERIFY
 
     def is_repo_share_to_group_msg(self):
         """
@@ -461,6 +485,32 @@ class UserNotification(models.Model):
             'repo_name': escape(repo.name),
             }
 
+        return msg
+
+    def format_file_shared_link_verify_msg(self):
+        """
+
+        Arguments:
+        - `self`:
+        """
+        try:
+            d = json.loads(self.detail)
+        except Exception as e:
+            logger.error(e)
+            return _(u"Internal error")
+
+        share_from = email2nickname(d['share_from'])
+        token = d['token']
+
+        ## if shared link expirate
+        #fileshare = FileShare.objects.get_valid_file_link_by_token(token)
+        #if not fileshare:
+        #    return None
+
+        msg = _(u"%(user)s created a new share link, please <a href='%(link)s' target='_blank'>review</a>.") % {
+            'user': escape(share_from),
+            'link': reverse('view_shared_file', args=[token]),
+            }
         return msg
 
     def format_repo_share_to_group_msg(self):
@@ -653,7 +703,7 @@ from django.dispatch import receiver
 from seahub.signals import upload_file_successful
 from seahub.group.signals import grpmsg_added, group_join_request, add_user_to_group
 from seahub.share.signals import share_repo_to_user_successful, \
-    share_repo_to_group_successful
+    share_repo_to_group_successful, file_shared_link_verify
 from seahub.message.signals import user_message_sent
 
 @receiver(upload_file_successful)
@@ -684,6 +734,21 @@ def add_share_repo_msg_cb(sender, **kwargs):
 
     detail = repo_share_msg_to_json(from_user, repo.id)
     UserNotification.objects.add_repo_share_msg(to_user, detail)
+
+######################### Start PingAn Group related ########################
+@receiver(file_shared_link_verify)
+def add_file_shared_link_verify_msg_cb(sender, **kwargs):
+    """Notify verifier when someone generate a file shared link
+    """
+    from_user = kwargs.get('from_user', None)
+    to_user = kwargs.get('to_user', None) # 'to_user' is verifier
+    token = kwargs.get('token', None)
+
+    assert from_user and to_user and token is not None, 'Arguments error'
+
+    detail = file_shared_link_verify_msg_to_json(from_user, token)
+    UserNotification.objects.add_file_shared_link_verify_msg(to_user, detail)
+######################### End PingAn Group related ##########################
 
 @receiver(share_repo_to_group_successful)
 def add_share_repo_to_group_msg_cb(sender, **kwargs):

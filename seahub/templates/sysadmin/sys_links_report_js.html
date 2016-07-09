@@ -1,0 +1,52 @@
+{% load i18n %}
+$(".view-link").click(function() {
+    var link = $(this).attr('data-link');
+    $('#shared-link').before('<p class="hide">' + link + '</p>')
+    .val(link).css('width', $('#shared-link').prev().width() + 2)
+    .modal({focus:false});
+    $('#shared-link').prev().remove();
+});
+
+$('.stats').click(function() {
+    var ul = '<ul>';
+    $.each($(this).attr('data-str').split(';'), function(idx, val) {
+        ul = ul + '<li>' + val + '</li>';
+    });
+
+    ul = ul + '</ul>';
+
+    $('#shared-link-stats').html(ul).css('width', '600px')
+           .css('height', '250px').modal();
+    return false;
+});
+
+$(".check-upload-info").click(function() {
+    var upload_info_popup = $('#upload-info'),
+        upload_link_id = $(this).attr('data-link_id');
+
+    upload_info_popup.modal({appendTo:'#main'});
+    $('#simplemodal-container').css({'height':'auto', 'width':'500px'});
+
+    $.ajax({
+        url: '{% url 'ajax_get_upload_files_info' %}',
+        dataType: 'json',
+        cache: 'false',
+        data: {
+            'upload_link_id': upload_link_id,
+        },
+        success: function(data) {
+            upload_info_popup.html(data['html']);
+            $(window).resize();
+        },
+        error: function(jqXHR, textStatus, errorThrown) {
+            var error;
+            if (jqXHR.responseText) {
+                error = $.parseJSON(jqXHR.responseText).error;
+            } else {
+                error = "{% trans "Please check the network." %}";
+            }
+            upload_info_popup.html('<p class="error alc">' + error + '</p>');
+            $(window).resize();
+        }
+    });
+});

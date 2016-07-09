@@ -117,6 +117,9 @@ MIDDLEWARE_CLASSES = (
     'seahub.base.middleware.InfobarMiddleware',
     'seahub.password_session.middleware.CheckPasswordHash',
     'seahub.base.middleware.ForcePasswdChangeMiddleware',
+######################### Start PingAn Group related ########################
+    'seahub.share.middleware.FileLinkVerifyMiddleware',
+######################### End PingAn Group related ##########################
 )
 
 SITE_ROOT_URLCONF = 'seahub.urls'
@@ -257,6 +260,14 @@ SHARE_LINK_PASSWORD_MIN_LENGTH = 8
 
 # enable or disable share link audit
 ENABLE_SHARE_LINK_AUDIT = False
+
+######################### Start PingAn Group related ########################
+# TODO: move to share/settings.py
+SHARE_ACCESS_FORCE_PASSWD = True
+# Days of share link password expiration
+# default 3 days, -1 for no limit
+SHARE_ACCESS_EXPIRATION = 3
+######################### End PingAn Group related ##########################
 
 # mininum length for user's password
 USER_PASSWORD_MIN_LENGTH = 6

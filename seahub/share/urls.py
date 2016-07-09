@@ -20,3 +20,14 @@ urlpatterns = patterns('',
     url(r'^ajax/private-share-dir/$', ajax_private_share_dir, name='ajax_private_share_dir'),
     url(r'^ajax/get-link-audit-code/$', ajax_get_link_audit_code, name='ajax_get_link_audit_code'),
 )
+
+######################### Start PingAn Group related ########################
+from .views_pingan import *
+urlpatterns += patterns(
+    '',
+    url(r'^links/verify/$', list_file_share_verify, name='list_file_share_verify'),
+    url(r'^links/export-verified-links/$', export_verified_links, name='export_verified_links'),
+    url(r'^ajax/change-download-link-status/$', ajax_change_dl_link_status, name='ajax_change_dl_link_status'),
+    url(r'^ajax/get-link-verify-code/$', ajax_get_link_verify_code, name='ajax_get_link_verify_code'),
+)
+######################### End PingAn Group related ##########################

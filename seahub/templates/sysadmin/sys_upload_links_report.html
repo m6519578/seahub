@@ -1,0 +1,51 @@
+{% extends "sysadmin/base.html" %}
+{% load i18n seahub_tags %}
+
+{% block cur_links %}tab-cur{% endblock %}
+
+{% block left_panel %}{{block.super}}
+<form action="{% url 'sys_upload_links_report_search' %}" method="get" class="side-search-form">
+    <input type="text" name="name" class="input" value="" placeholder="{% trans "Search links by name..." %}" />
+</form>
+{% endblock %}
+
+{% block right_panel %}
+
+<div class="tabnav ovhd">
+    <ul class="tabnav-tabs fleft">
+        <li class="tabnav-tab"><a href="{% url 'sys_download_links_report' %}">{% trans "Download Links" %}</a></li>
+        <li class="tabnav-tab tabnav-tab-cur"><a href="{% url 'sys_upload_links_report' %}">{% trans "Upload Links" %}</a></li>
+    </ul>
+    {% if upload_links %}
+    <div class="fright">
+        <button id="export-upload-links">{% trans "Export Upload Links" %}</button>
+    </div>
+    {% endif %}
+</div>
+
+{% if upload_links %}
+    {% include "sysadmin/sys_upload_links_report_table.html" %}
+    {% include "snippets/admin_paginator.html" %}
+
+    <input type="text" readonly="readonly" value="" id="shared-link" class="hide" />
+    <div id="upload-info" class="hide">
+        <img src="{{MEDIA_URL}}img/loading-icon.gif" alt="" width="16" class="replies-loading-icon" />
+    </div>
+{% else %}
+    <div class="empty-tips">
+        <h2 class="alc">{% trans "No upload links"%}</h2>
+    </div>
+{% endif %}
+
+{% endblock %}
+
+{% block extra_script %}{{block.super}}
+<script type="text/javascript">
+{% if upload_links %}
+{% include "sysadmin/sys_links_report_js.html" %}
+$("#export-upload-links").click(function() {
+    location.href = "{% url 'sys_links_report_export_excel' %}" + "?type=upload";
+});
+{% endif %}
+</script>
+{% endblock %}

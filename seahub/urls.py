@@ -379,3 +379,20 @@ if TRAFFIC_STATS_ENABLED:
     urlpatterns += patterns('',
         url(r'^sys/trafficadmin/$', sys_traffic_admin, name='sys_trafficadmin'),
     )
+
+
+########################### Start PingAn Group related ######################
+from seahub.views.sysadmin_pingan import *
+urlpatterns += patterns(
+    '',
+    url(r'^sys/reviseradmin/$', sys_reviser_admin, name='sys_reviser_admin'),
+    url(r'^sys/download-links-report/$', sys_download_links_report, name='sys_download_links_report'),
+    url(r'^sys/download-links-report-search/$', sys_download_links_report_search, name='sys_download_links_report_search'),
+    url(r'^sys/upload-links-report/$', sys_upload_links_report, name='sys_upload_links_report'),
+    url(r'^sys/upload-links-report-search/$', sys_upload_links_report_search, name='sys_upload_links_report_search'),
+    url(r'^sys/ajax-get-upload-files-info/$', ajax_get_upload_files_info, name='ajax_get_upload_files_info'),
+    url(r'^sys/links-report/export-excel/$', sys_links_report_export_excel, name='sys_links_report_export_excel'),
+    url(r'^reviseradmin/add/$', reviser_add, name="reviser_add"),
+    url(r'^reviseradmin/remove/(?P<reviser_info_id>\d+)/$', reviser_remove, name="reviser_remove"),
+)
+########################### End PingAn Group related ########################

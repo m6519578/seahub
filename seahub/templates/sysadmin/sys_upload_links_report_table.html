@@ -1,0 +1,19 @@
+{% load i18n seahub_tags %}
+<table>
+    <tr>
+        <th width="4%"><!--icon--></th>
+        <th width="22%">{% trans "Name"%}</th>
+        <th width="30%">{% trans "From"%}</th>
+        <th width="40%">{% trans "Upload Info"%}</th>
+        <th width="4%"><!--icon--></th>
+    </tr>
+    {% for link in upload_links %}
+    <tr>
+        <td class="alc"><img src="{{ MEDIA_URL }}img/folder-24.png" alt="{% trans "Directory icon"%}" /></td>
+        <td><a href="{% url 'view_common_lib_dir' link.repo_id '' %}">{{ link.dirname }}</a></td>
+        <td><a href="{% url 'user_profile' link.username %}" target="_blank">{{ link.username }}</a></td>
+        <td><a href="#" class="check-upload-info op vh" data-link_id="{{ link.id }}">{% trans "Show Upload Info" %}</a></td>
+        <td><img src="{{ MEDIA_URL }}img/link.png" alt="" class="view-link op-icon vh" data-link="{{ link.shared_link }}" title="{% trans "View"%}" /></td>
+    </tr>
+{% endfor %}
+</table>
