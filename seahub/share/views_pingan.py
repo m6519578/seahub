@@ -20,7 +20,8 @@ from seahub.profile.models import DetailedProfile
 from seahub.share.constants import STATUS_VERIFING, STATUS_PASS, STATUS_VETO
 from seahub.share.models import (FileShare, FileShareReviserInfo,
                                  FileShareVerify, FileShareDownloads,
-                                 FileShareReceiver)
+                                 FileShareReceiver, FileShareReviserInfo)
+from seahub.share.share_link_checking import email_reviser
 from seahub.utils import gen_token, send_html_email
 from seahub.utils.ms_excel import write_xls
 from seahub.settings import SITE_ROOT
@@ -71,6 +72,10 @@ def get_verify_link_by_user(username):
         except FileShareVerify.DoesNotExist as e:
             logger.error(e)
             continue
+
+        if not fs.is_verifing():
+            verified_links.append(fs)
+            continue            # continue to next shared link
 
         user_pass = False
         user_veto = False
@@ -131,6 +136,16 @@ def get_verify_link_by_user(username):
 @user_mods_check
 def list_file_share_verify(request):
     """List file links that need verify.
+    列出“待审批的外链”／“已审批的外链”：
+
+1. 从审批链（部门－部门长－稽核）里得到当前用户能审批的部门列表；--> dept_list
+2. 得到所有属于(dept_list)的成员（注意：精确到部门即可，基础架构部项目组和基础架构步系统组同属一个审批链）；--> users
+3. 得到所有 users 的外链；--> fileshares
+4. 遍历每条外链（fileshare）,
+    如果外链状态为审核通过／否决，则加入“已审批”列表；（待审核的外链，我有可能已经审核完毕，等待其他人审核）
+    否则得到该外链的审批人员的邮箱列表，
+      如果当前用户属于这个列表，并且“通过”或“否决”该外链，则加入“已审批”列表；
+      否则，加入“待审批”列表。
     """
     username = request.user.username
     verifing_links, verified_links = get_verify_link_by_user(username)
@@ -220,8 +235,6 @@ def ajax_change_dl_link_status(request):
     Arguments:
     - `request`:
     """
-    from seahub.share.models import FileShareVerify
-
     content_type = 'application/json; charset=utf-8'
 
     token = request.POST.get('t', '')
@@ -236,9 +249,10 @@ def ajax_change_dl_link_status(request):
     if status not in (STATUS_VERIFING, STATUS_PASS, STATUS_VETO):
         return HttpResponse({}, status=400, content_type=content_type)
 
-    fileshare = FileShare.objects.get_valid_file_link_by_token(token)
-    if fileshare is None:
-        raise Http404
+    try:
+        fileshare = FileShare.objects.get(token=token)
+    except FileShare.DoesNotExist:
+        return HttpResponse({}, status=400, content_type=content_type)
 
     username = request.user.username
     revisers = FileShareReviserInfo.objects.get_reviser_emails(fileshare)
@@ -249,6 +263,12 @@ def ajax_change_dl_link_status(request):
         FileShareVerify.objects.set_status(fileshare, status, username)
     except ValueError:
         return HttpResponse({}, status=400, content_type=content_type)
+
+    if fileshare.pass_verify():
+        # reset expiration time starts from now
+        new_expire_date = timezone.now() + (fileshare.expire_date - fileshare.ctime)
+        fileshare.expire_date = new_expire_date
+        fileshare.save()
 
     return HttpResponse({}, status=200, content_type=content_type)
 
@@ -297,3 +317,36 @@ def ajax_get_link_verify_code(request):
         return HttpResponse(json.dumps({
             "error": _("Failed to send verify code, please try again later.")
         }), status=500, content_type=content_type)
+
+@login_required_ajax
+@require_POST
+def ajax_remind_revisers(request):
+    content_type = 'application/json; charset=utf-8'
+
+    token = request.POST.get('token', '')
+    if not token:
+        return HttpResponse({}, status=400, content_type=content_type)
+
+    fileshare = FileShare.objects.get(token=token)
+    if not fileshare or not fileshare.is_verifing():
+        return HttpResponse({}, status=400, content_type=content_type)
+
+    if fileshare.username != request.user.username:
+        return HttpResponse({}, status=403, content_type=content_type)
+
+    revisers = FileShareReviserInfo.objects.get_reviser_emails(fileshare)
+    remind_list = list(set(revisers))
+
+    fs_v = FileShareVerify.objects.get(share_link=fileshare)
+    if fs_v.department_head_status != STATUS_VERIFING:
+        remind_list = [x for x in remind_list if x != revisers[0]]
+
+    if fs_v.reviser_status != STATUS_VERIFING:
+        remind_list = [x for x in remind_list if x != revisers[2]]
+        remind_list = [x for x in remind_list if x != revisers[3]]
+
+    for x in remind_list:
+        email_reviser(fileshare, x)
+
+    return HttpResponse(json.dumps({'sent': remind_list}),
+                        status=200, content_type=content_type)

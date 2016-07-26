@@ -1,14 +1,14 @@
 # -*- coding: utf-8 -*-
 
 from django.conf import settings
-from django.http import HttpResponseRedirect
-from django.shortcuts import render_to_response
+from django.http import HttpResponseRedirect, Http404
+from django.shortcuts import render_to_response, get_object_or_404
 from django.template import RequestContext
 from django.utils.http import urlquote
 from django.utils.translation import ugettext as _
 
 from seahub.auth import REDIRECT_FIELD_NAME
-from seahub.share.models import (set_share_link_access,
+from seahub.share.models import (FileShare, set_share_link_access,
                                  check_share_link_access, FileShareVerify,
                                  FileShareReviserInfo)
 from seahub.share.forms import SharedLinkPasswordForm, CaptchaSharedLinkPasswordForm
@@ -23,10 +23,14 @@ from seahub.utils.ip import get_remote_ip
 def share_link_approval_for_pingan(func):
     """Decorator for share link approval test for PingAn Group.
     When a share link does not pass verify, only verifier can view the link,
-    no mater encrypted or not.
+    no mater encrypted or expired.
     """
-    def _decorated(request, fileshare, *args, **kwargs):
+    def _decorated(request, token, *args, **kwargs):
+        fileshare = get_object_or_404(FileShare, token=token)
         if fileshare.pass_verify():
+            if fileshare.is_expired():
+                raise Http404
+
             return func(request, fileshare, *args, **kwargs)
 
         # verifier can view encrypted shared link without need to enter

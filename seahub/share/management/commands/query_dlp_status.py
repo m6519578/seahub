@@ -15,6 +15,7 @@ from seahub.share.models import FileShareVerify, FileShareReviserInfo
 from seahub.share.constants import STATUS_VERIFING, STATUS_PASS, STATUS_VETO
 from seahub.share.signals import file_shared_link_verify
 from seahub.share.settings import DLP_SCAN_POINT, SHARE_LINK_BACKUP_LIBRARY
+from seahub.share.share_link_checking import email_reviser
 from seahub.utils import get_service_url, send_html_email
 
 # Get an instance of a logger
@@ -144,23 +145,8 @@ class Command(BaseCommand):
             # get and active user language
             user_language = self.get_user_language(email)
             translation.activate(user_language)
-            print 'Set language code to %s' % user_language
 
-            subject = _('Please verify new share link.')
-            c = {
-                'email': fileshare.username,
-                'file_name': fileshare.get_name(),
-                'file_shared_link': fileshare.get_full_url(),
-                'service_url': get_service_url(),
-            }
-            try:
-                send_html_email(subject, 'share/share_link_verify_email.html',
-                                c, None, [email])
-                print 'Send email to %s, link: %s' % (email, fileshare.get_full_url())
-                logger.info('Send email to %s, link: %s' % (email, fileshare.get_full_url()))
-            except Exception as e:
-                logger.error('Faied to send email to %s, please check email settings.' % email)
-                logger.error(e)
+            email_reviser(fileshare, email)
 
             # restore current language
             translation.activate(cur_language)

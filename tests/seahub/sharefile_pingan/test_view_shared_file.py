@@ -1,13 +1,11 @@
-from mock import patch
-import json
+# -*- coding: utf-8 -*-
+import datetime
+import time
 
-from django.core import mail
 from django.core.urlresolvers import reverse
-from django.core.management import call_command
 
 from seahub.share.models import FileShare, FileShareVerify, FileShareDownloads
 from seahub.test_utils import BaseTestCase
-from seahub.share.management.commands.query_dlp_status import Command
 from .mixins import SetupRevisersMixin, AddDownloadLinkMixin
 
 
@@ -111,3 +109,41 @@ class ViewSharedFileTest(BaseTestCase, SetupRevisersMixin, AddDownloadLinkMixin)
         assert "8082" in resp.get('location')
 
         assert len(FileShareDownloads.objects.all()) == 1
+
+    def test_reset_expire_date_when_pass_verify(self):
+        """链接有效期应该以审批完成时间为起点计算，当前是按产生链接时间算，
+        有的来不及审批完就过期了；
+        """
+        assert FileShare.objects.get(token=self.fs.token).pass_verify() is False
+        old_expire_date = self.fs.expire_date
+        verify_url = reverse('ajax_change_dl_link_status')
+
+        # DLP pass
+        fs_v = FileShareVerify.objects.get(share_link=self.fs)
+        fs_v.DLP_status = 1
+        fs_v.save()
+
+        # department head pass
+        self.login_as(self.user)
+        resp = self.client.post(verify_url, {
+            't': self.fs.token,
+            's': '1',
+        }, HTTP_X_REQUESTED_WITH='XMLHttpRequest')
+        self.assertEqual(200, resp.status_code)
+        self.logout()
+        assert FileShare.objects.get(token=self.fs.token).pass_verify() is False
+
+        time.sleep(1)
+
+        # reviser 1 pass
+        self.login_as(self.admin)
+        resp = self.client.post(verify_url, {
+            't': self.fs.token,
+            's': '1',
+        }, HTTP_X_REQUESTED_WITH='XMLHttpRequest')
+        self.assertEqual(200, resp.status_code)
+        self.logout()
+        assert FileShare.objects.get(token=self.fs.token).pass_verify() is True
+
+        new_expire_date = FileShare.objects.get(token=self.fs.token).expire_date
+        assert (new_expire_date - old_expire_date) >= datetime.timedelta(seconds=1)

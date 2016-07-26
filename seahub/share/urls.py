@@ -29,5 +29,6 @@ urlpatterns += patterns(
     url(r'^links/export-verified-links/$', export_verified_links, name='export_verified_links'),
     url(r'^ajax/change-download-link-status/$', ajax_change_dl_link_status, name='ajax_change_dl_link_status'),
     url(r'^ajax/get-link-verify-code/$', ajax_get_link_verify_code, name='ajax_get_link_verify_code'),
+    url(r'^ajax/remind-revisers/$', ajax_remind_revisers, name='ajax_remind_revisers'),
 )
 ######################### End PingAn Group related ##########################

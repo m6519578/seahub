@@ -747,7 +747,6 @@ def _download_file_from_share_link(request, fileshare):
                                                        use_onetime=False)
     return HttpResponseRedirect(gen_file_get_url(dl_token, filename))
 
-@share_link_audit
 @share_link_approval_for_pingan
 @share_link_passwd_check_for_pingan
 def view_shared_file(request, fileshare, *args, **kwargs):

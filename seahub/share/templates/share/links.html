@@ -17,9 +17,9 @@
         <table>
             <tr>
                 <th width="4%"><!--icon--></th>
-                <th width="27%" class="by-name cspt">{% trans "Name"%} <span class="sort-icon hide"></span></th>
+                <th width="20%" class="by-name cspt">{% trans "Name"%} <span class="sort-icon hide"></span></th>
                 <th width="24%">{% trans "Library"%}</th>
-                <th width="13%">{% trans "Status"%}</th>
+                <th width="20%">{% trans "Status"%}</th>
                 <th width="10%">{% trans "Visits"%}</th>
                 <th width="12%" class="by-time cspt">{% trans "Expiration"%} <span class="sort-icon hide"></span></th>
                 <th width="10%"><!--Operations--></th>
@@ -36,14 +36,11 @@
                 <td><a href="{% url 'view_common_lib_dir' fs.repo.id '' %}">{{ fs.repo.name }}</a></td>
                 <td>
                     <a href="#" class="stats" data-str="{{ fs.get_verbose_status_str }}">{{ fs.get_short_status_str }}</a>
+                    {% if fs.need_remind %}<button class="js-remind" data-token="{{fs.token}}">{% trans "remind" %}</button>{% endif %}
                 </td>
                 <td>{{ fs.view_cnt }}</td>
-                {% if fs.expire_date %}
-                {% if fs.is_expired %}
-                <td class='error'>{{ fs.expire_date|date:'Y-m-d' }}</td>
-                {% else %}
-                <td>{{ fs.expire_date|date:'Y-m-d' }}</td>
-                {% endif %}
+                {% if fs.pass_verify and fs.expire_date %}
+                <td {%if fs.is_expired%}class='error'{%endif%}>{{ fs.expire_date|date:'Y-m-d' }}</td>
                 {% else %}
                 <td>--</td>
                 {% endif %}
@@ -155,6 +152,30 @@ $('.stats').click(function() {
 
     $('#shared-link-stats').html(ul).css('width', '600px')
            .css('height', '250px').modal();
+    return false;
+});
+
+$('.js-remind').click(function() {
+    var token = $(this).attr('data-token');
+    $.ajax({
+        url: "{% url 'ajax_remind_revisers' %}",
+        type: 'POST',
+        data: {
+            'token': token
+        },
+        cache: false,
+        dataType: 'json',
+        beforeSend: prepareCSRFToken,
+        success: function(data) {
+            if (data.sent.length > 0) {
+                feedback("{% trans 'Successfully sent email to: ' %}" + data.sent.join(', '), 'success');
+            } else {
+                feedback("{% trans 'Success' %}", 'success');
+            }
+        },
+        error: ajaxErrorHandler
+    });
+
     return false;
 });
 {% comment "End PingAn Group related" %}{% endcomment %}

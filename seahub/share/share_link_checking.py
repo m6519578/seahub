@@ -8,9 +8,11 @@ import json
 
 from django.core.urlresolvers import reverse
 from django.http import HttpResponse
+from django.utils.translation import ugettext as _
 
 from .models import FileShareVerify, FileShareReviserInfo
 from .settings import FUSE_MOUNT_POINT, DLP_SCAN_POINT
+from seahub.utils import get_service_url, send_html_email
 
 # Get an instance of a logger
 logger = logging.getLogger(__name__)
@@ -64,3 +66,22 @@ def is_file_link_reviser(username):
         return True
     else:
         return False
+
+def email_reviser(fileshare, reviser_email):
+    """Send email to revisers to verify shared link.
+    """
+    subject = _('Please verify new share link.')
+    c = {
+        'email': fileshare.username,
+        'file_name': fileshare.get_name(),
+        'file_shared_link': fileshare.get_full_url(),
+        'service_url': get_service_url(),
+    }
+    try:
+        send_html_email(subject, 'share/share_link_verify_email.html',
+                        c, None, [reviser_email])
+        logger.info('Send email to %s, link: %s' % (reviser_email,
+                                                    fileshare.get_full_url()))
+    except Exception as e:
+        logger.error('Faied to send email to %s, please check email settings.' % reviser_email)
+        logger.error(e)

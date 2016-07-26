@@ -286,6 +286,17 @@ class FileShare(models.Model):
             return pwd
         else:
             return _('Unsupported password format, please regenerate link if you want to show password.')
+
+    def need_remind(self):
+        """Return `True` if department head or revisers are verifying and need
+        to be remind.
+        """
+        fs_v = self.fileshareverify_set.all()[0]
+        if fs_v.department_head_status == 0 or fs_v.reviser_status == 0:
+            return True
+        else:
+            return False
+
     #################### END PingAn Group related ######################
 
 
