@@ -21,7 +21,7 @@ from seahub.share.constants import STATUS_VERIFING, STATUS_PASS, STATUS_VETO
 from seahub.share.models import (FileShare, FileShareReviserInfo,
                                  FileShareVerify, FileShareDownloads,
                                  FileShareReceiver, FileShareReviserInfo)
-from seahub.share.share_link_checking import email_reviser
+from seahub.share.share_link_checking import (email_reviser, email_verify_result)
 from seahub.utils import gen_token, send_html_email
 from seahub.utils.ms_excel import write_xls
 from seahub.settings import SITE_ROOT
@@ -230,7 +230,7 @@ def export_verified_links(request):
 @login_required_ajax
 @require_POST
 def ajax_change_dl_link_status(request):
-    """
+    """Approve or veto a shared link.
     
     Arguments:
     - `request`:
@@ -269,6 +269,10 @@ def ajax_change_dl_link_status(request):
         new_expire_date = timezone.now() + (fileshare.expire_date - fileshare.ctime)
         fileshare.expire_date = new_expire_date
         fileshare.save()
+
+    if fileshare.pass_verify() or fileshare.reject_verify():
+        # email verify result to shared link owner
+        email_verify_result(fileshare, fileshare.username)
 
     return HttpResponse({}, status=200, content_type=content_type)
 

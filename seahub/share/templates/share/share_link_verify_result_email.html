@@ -1,0 +1,21 @@
+{% extends 'email_base.html' %}
+{% load i18n %}
+
+{% block email_con %}
+
+{% autoescape off %}
+
+<p style="color:#121214;font-size:14px;">{% trans "Hi," %}</p>
+
+<p style="font-size:14px;color:#434144;">
+{% blocktrans %}Verification of your shared link for file {{ file_name }} has been completed.{% endblocktrans%} <br />
+{% trans "Status" %}: {{ result }}
+</p>
+
+<p style="font-size:14px;color:#434144;">
+    {% blocktrans %}For details, please refer to <a href="{{ service_url }}share/links/">{{ service_url }}share/links/</a>.{% endblocktrans %}
+</p>
+
+{% endautoescape %}
+
+{% endblock %}

@@ -85,3 +85,22 @@ def email_reviser(fileshare, reviser_email):
     except Exception as e:
         logger.error('Faied to send email to %s, please check email settings.' % reviser_email)
         logger.error(e)
+
+def email_verify_result(fileshare, email_to):
+    """Send email to `email_to` about shared link verify result.
+    """
+
+    subject = _('Verification of your share link has been completed.')
+    c = {
+        'result': fileshare.get_short_status_str(),
+        'file_name': fileshare.get_name(),
+        'service_url': get_service_url(),
+    }
+    try:
+        send_html_email(subject, 'share/share_link_verify_result_email.html',
+                        c, None, [email_to])
+        logger.info('Send verify result email to %s, link: %s' % (
+            email_to, fileshare.get_full_url()))
+    except Exception as e:
+        logger.error('Faied to send verify result email to %s' % email_to)
+        logger.error(e)

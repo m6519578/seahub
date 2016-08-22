@@ -215,6 +215,12 @@ class FileShare(models.Model):
 
         return True if self.get_status() == STATUS_VERIFING else False
 
+    def reject_verify(self):
+        if not ENABLE_FILESHARE_CHECK:
+            return False
+
+        return True if self.get_status() == STATUS_VETO else False
+
     def get_status(self):
         if not ENABLE_FILESHARE_CHECK:
             return None
