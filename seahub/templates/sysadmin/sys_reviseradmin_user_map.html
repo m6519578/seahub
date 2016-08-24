@@ -1,0 +1,138 @@
+{% extends "sysadmin/base.html" %}
+{% load i18n %}
+{% block cur_revisers %}tab-cur{% endblock %}
+
+{% block right_panel %}
+<div class="tabnav ovhd">
+    <ul class="tabnav-tabs fleft">
+        <li class="tabnav-tab"><a href="{% url 'sys_reviser_admin' %}">{% trans "Department" %}</a></li>
+        <li class="tabnav-tab tabnav-tab-cur"><a href="{% url 'sys_reviser_admin_user_map' %}">{% trans "User" %}</a></li>
+    </ul>
+    <div class="fright">
+        <button id="add-reviser-btn"><img src="{{ MEDIA_URL }}img/add.png" alt="" class="add vam" /><span class="vam">{% trans "Add reviser" %}</span></button>
+    </div>
+    
+</div>
+
+
+<form id="add-reviser-form" action="" method="post" class="hide">{% csrf_token %}
+    <h3>{% trans "Add reviser" %}</h3>
+
+    <label for="email">{% trans "User" %}</label><br />
+    <input type="text" name="email" id="email" placeholder="{% trans "email" %}" class="input" /><br />
+
+    <label for="reviser">{% trans "Reviser" %}</label><br />
+    <input type="text" name="reviser-name" id="reviser-name" placeholder="{% trans "Name" %}" class="input name" />
+    <input type="text" name="reviser-account" id="reviser-account" placeholder="{% trans "Account" %}" class="input account" /><br />
+    <input type="text" name="reviser-email" id="reviser-email" placeholder="{% trans "Email" %}" class="input" /><br />
+
+    <p class="error hide"></p>
+    <button type="submit" class="submit">{% trans "Submit" %}</button>
+</form>
+
+{% if r_map %}
+<table>
+    <tr>
+        <th width="36%">{% trans "Email" %}</th>
+        <th width="18%">{% trans "Reviser name" %}</th>
+        <th width="18%">{% trans "Reviser account" %}</th>
+        <th width="18%">{% trans "Reviser email" %}</th>
+        <th width="10%"><!--operation--></th>
+    </tr>
+    {% for r in r_map %}
+    <tr>
+        <td>{{ r.username }}</td>
+        <td>{{ r.reviser_name }}</td>
+        <td>{{ r.reviser_account }}</td>
+        <td>{{ r.reviser_email }}</td>
+        <td>
+          <a href="{% url 'reviser_map_remove' r.id %}" class="remove op vh">{% trans "Delete" %}</a>
+          <a href="#" class="edit op vh">{% trans "Edit" %}</a>
+        </td>
+    </tr>
+    {% endfor %}
+</table>
+{% else %}
+<div class="empty-tips">
+    <h2 class="alc">{% trans "No reviser has been added yet" %}</h2>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block extra_script %}
+<script type="text/javascript">
+$('#add-reviser-form').submit(function() {
+    var form = $(this),
+        form_id = $(this).attr('id'),
+        submit_btn = $(this).find('[type="submit"]'),
+
+        user_email = $.trim(form.children('[name="email"]').val()),
+
+        reviser_name = $.trim(form.children('[name="reviser-name"]').val()),
+        reviser_account = $.trim(form.children('[name="reviser-account"]').val()),
+        reviser_email = $.trim(form.children('[name="reviser-email"]').val());
+
+    function validateEmail(email) {
+        var re = /^([\w-]+(?:\.[\w-]+)*)@((?:[\w-]+\.)*\w[\w-]{0,66})\.([a-z]{2,6}(?:\.[a-z]{2})?)$/i;
+        return re.test(email);
+    }
+
+    if (!user_email) {
+        apply_form_error(form_id, "{% trans "Email cannot be blank" %}");
+        return false;
+    }
+
+    if (!reviser_email) {
+        apply_form_error(form_id, "{% trans "Reviser email cannot be blank" %}");
+        return false;
+    }
+
+    if (!validateEmail(reviser_email)) {
+        apply_form_error(form_id, "{% trans "Invalid email" %}");
+        return false;
+    }
+
+    var data = {
+        'user_email': user_email,
+
+        'reviser_name': reviser_name,
+        'reviser_account': reviser_account,
+        'reviser_email': reviser_email
+    };
+
+    disable(submit_btn);
+
+    $.ajax({
+        url: '{% url 'reviser_map_add' %}',
+        type: 'POST',
+        datatype: 'json',
+        cache: 'false',
+        beforeSend: prepareCSRFToken,
+        data: data,
+        success: function() {
+            location.reload(true);
+        },
+        error: function(jqXHR, textStatus, errorThrown) {
+            if (jqXHR.responseText) {
+                apply_form_error(form_id, $.parseJSON(jqXHR.responseText).error);
+            } else {
+                apply_form_error(form_id, "{% trans "Failed. Please check the network." %}");
+            }
+            enable(submit_btn);
+        }
+    });
+    return false;
+});
+
+$('#add-reviser-btn').click(function() {
+        $('#add-reviser-form').modal();
+        $('#simplemodal-container').css({'width':'auto'});
+});
+
+$('.edit').click(function() {
+    $('#edit-reviser-form').modal();
+    $('#simplemodal-container').css({'width':'auto'});
+});
+</script>
+{% endblock %}

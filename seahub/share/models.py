@@ -12,7 +12,6 @@ from seahub.utils import normalize_file_path, normalize_dir_path, gen_token,\
 ######################### Start PingAn Group related ########################
 import os
 import posixpath
-from seahub.profile.models import DetailedProfile
 from seahub.share.constants import STATUS_VERIFING, STATUS_PASS, STATUS_VETO
 from seahub.share.hashers import make_password, check_password, decode_password
 from seahub.share.settings import ENABLE_FILESHARE_CHECK
@@ -544,7 +543,8 @@ class FileShareVerifyManager(models.Manager):
         except FileShareVerify.DoesNotExist:
             return None
 
-        reviser_info = FileShareReviserInfo.objects.get_reviser_info(share_link)
+        from seahub.share.share_link_checking import get_reviser_info_by_user
+        reviser_info = get_reviser_info_by_user(share_link.username)
         if reviser_info is None:
             return None
 
@@ -571,6 +571,7 @@ class FileShareVerifyManager(models.Manager):
             'name': reviser_info.department_head_name,
             'email': reviser_info.department_head_email
         }
+
         if fs_verify.department_head_status == STATUS_VERIFING:
             dept_head_msg = _('Awaiting %s verifing') % department_head_info
 
@@ -633,7 +634,8 @@ class FileShareVerifyManager(models.Manager):
         """
         m = self.get(share_link=share_link)
 
-        revisers = FileShareReviserInfo.objects.get_reviser_emails(share_link)
+        from seahub.share.share_link_checking import get_reviser_emails_by_user
+        revisers = get_reviser_emails_by_user(share_link.username)
         if not revisers:
             return m
 
@@ -722,32 +724,6 @@ class FileShareReviserInfoManager(models.Manager):
 
         return reviser
 
-    def get_reviser_info(self, fileshare):
-        d_profile = DetailedProfile.objects.get_detailed_profile_by_user(
-            fileshare.username)
-        if not d_profile:
-            logger.error('No detailed profile(department, ... etc) found for user %s' % fileshare.username)
-            return None
-
-        for row in self.all():
-            if row.department_name in d_profile.department:
-                if not row.department_head_email:
-                    logger.error('No department head email found in %s' %
-                                 d_profile.department)
-
-                return row
-
-        return None
-
-    def get_reviser_emails(self, fileshare):
-        """Get revisers' emails for a share link.
-        """
-        info = self.get_reviser_info(fileshare)
-        if not info:
-            return []
-        return [info.department_head_email.lower(), info.comanager_head_email.lower(),
-                info.reviser1_email.lower(), info.reviser2_email.lower()]
-
 
 class FileShareReviserInfo(models.Model):
     department_name = models.CharField(max_length=200, db_index=True)
@@ -765,6 +741,23 @@ class FileShareReviserInfo(models.Model):
     reviser2_email = models.EmailField()
 
     objects = FileShareReviserInfoManager()
+
+
+class FileShareReviserMap(models.Model):
+    """Direct map for user and revisor, if there is a record in this table,
+    we will not use department relation for revisors anymore.
+    """
+    username = LowerCaseCharField(max_length=255, db_index=True)
+    reviser_name = models.CharField(max_length=1024)
+    reviser_account = models.CharField(max_length=1024)
+    reviser_email = models.EmailField()
+
+
+class FileShareVerifyIgnore(models.Model):
+    """Ignore user from share link verification. In some usercases, boss does
+    not want to be verified when generate shared link.
+    """
+    username = LowerCaseCharField(max_length=255)
 
 
 class FileShareReceiverManager(models.Manager):

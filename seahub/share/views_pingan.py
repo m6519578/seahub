@@ -21,7 +21,8 @@ from seahub.share.constants import STATUS_VERIFING, STATUS_PASS, STATUS_VETO
 from seahub.share.models import (FileShare, FileShareReviserInfo,
                                  FileShareVerify, FileShareDownloads,
                                  FileShareReceiver, FileShareReviserInfo)
-from seahub.share.share_link_checking import (email_reviser, email_verify_result)
+from seahub.share.share_link_checking import (
+    email_reviser, email_verify_result, get_reviser_emails_by_user)
 from seahub.utils import gen_token, send_html_email
 from seahub.utils.ms_excel import write_xls
 from seahub.settings import SITE_ROOT
@@ -80,7 +81,7 @@ def get_verify_link_by_user(username):
         user_pass = False
         user_veto = False
 
-        revisers = FileShareReviserInfo.objects.get_reviser_emails(fs)
+        revisers = get_reviser_emails_by_user(fs.username)
         if username in revisers:
             if username == revisers[0]:
                 if fs_verify.department_head_pass():
@@ -255,7 +256,7 @@ def ajax_change_dl_link_status(request):
         return HttpResponse({}, status=400, content_type=content_type)
 
     username = request.user.username
-    revisers = FileShareReviserInfo.objects.get_reviser_emails(fileshare)
+    revisers = get_reviser_emails_by_user(fileshare.username)
     if username not in revisers:
         return HttpResponse({}, status=403, content_type=content_type)
 
@@ -338,7 +339,7 @@ def ajax_remind_revisers(request):
     if fileshare.username != request.user.username:
         return HttpResponse({}, status=403, content_type=content_type)
 
-    revisers = FileShareReviserInfo.objects.get_reviser_emails(fileshare)
+    revisers = get_reviser_emails_by_user(fileshare.username)
     remind_list = list(set(revisers))
 
     fs_v = FileShareVerify.objects.get(share_link=fileshare)

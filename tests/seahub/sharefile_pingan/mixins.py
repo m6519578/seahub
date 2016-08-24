@@ -1,6 +1,7 @@
 from django.core.urlresolvers import reverse
 
-from seahub.share.models import FileShare, FileShareVerify, FileShareReviserInfo
+from seahub.share.models import (FileShare, FileShareVerify,
+                                 FileShareReviserInfo, FileShareReviserMap)
 from seahub.profile.models import Profile, DetailedProfile
 
 
@@ -24,6 +25,11 @@ class SetupRevisersMixin(object):
 
         Profile.objects.add_or_update(self.admin.username, '', '')
         DetailedProfile.objects.add_detailed_profile(self.admin.username, department, '')
+
+    def setup_reviser_map(self):
+        FileShareReviserMap.objects.create(
+            username=self.user.username, reviser_name='', reviser_account='',
+            reviser_email=self.user.username)
 
 
 class AddDownloadLinkMixin(object):

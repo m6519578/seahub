@@ -17,6 +17,7 @@ from seahub.share.utils import (incr_share_link_decrypt_failed_attempts,
                                 show_captcha_share_link_password_form,
                                 enable_share_link_verify_code,
                                 get_unusable_verify_code)
+from seahub.share.share_link_checking import get_reviser_emails_by_user
 from seahub.utils import render_error
 from seahub.utils.ip import get_remote_ip
 
@@ -48,7 +49,7 @@ def share_link_approval_for_pingan(func):
             tup = settings.LOGIN_URL, REDIRECT_FIELD_NAME, path
             return HttpResponseRedirect('%s?%s=%s' % tup)
         else:
-            revisers = FileShareReviserInfo.objects.get_reviser_emails(fileshare)
+            revisers = get_reviser_emails_by_user(fileshare.username)
             req_user = request.user.username
             if req_user in revisers:
                 fs_v = FileShareVerify.objects.get(share_link=fileshare)

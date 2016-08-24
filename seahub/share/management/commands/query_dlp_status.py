@@ -15,7 +15,8 @@ from seahub.share.models import FileShareVerify, FileShareReviserInfo
 from seahub.share.constants import STATUS_VERIFING, STATUS_PASS, STATUS_VETO
 from seahub.share.signals import file_shared_link_verify
 from seahub.share.settings import DLP_SCAN_POINT, SHARE_LINK_BACKUP_LIBRARY
-from seahub.share.share_link_checking import (email_reviser, email_verify_result)
+from seahub.share.share_link_checking import (
+    email_reviser, email_verify_result, get_reviser_emails_by_user)
 from seahub.utils import get_service_url, send_html_email
 
 # Get an instance of a logger
@@ -134,7 +135,7 @@ class Command(BaseCommand):
         logger.info('Backup to %s successfuly, name is %s.' % (SHARE_LINK_BACKUP_LIBRARY, new_file))
 
     def email_revisers(self, fileshare):
-        emails = set(FileShareReviserInfo.objects.get_reviser_emails(fileshare))
+        emails = set(get_reviser_emails_by_user(fileshare.username))
         for email in emails:
             # send notice first
             file_shared_link_verify.send(sender=None,

@@ -21,7 +21,9 @@ from seahub.auth.decorators import login_required, login_required_ajax
 from seahub.utils import gen_shared_upload_link, is_valid_email
 from seahub.utils.ms_excel import write_xls
 from seahub.share.models import FileShare, UploadLinkShare, FileShareVerify, \
-    FileShareReviserInfo, UploadLinkShareUploads, FileShareDownloads
+    FileShareReviserInfo, UploadLinkShareUploads, FileShareDownloads, \
+    FileShareReviserMap, FileShareVerifyIgnore
+from seahub.share.share_link_checking import get_reviser_info_by_user
 from seahub.share.constants import STATUS_VERIFING, STATUS_PASS, STATUS_VETO
 from seahub.settings import SITE_ROOT
 
@@ -72,6 +74,30 @@ def sys_reviser_admin(request):
             'revisers': revisers,
         }, context_instance=RequestContext(request))
 
+@login_required
+@sys_staff_required
+def sys_reviser_admin_user_map(request):
+    """List all reviser user maps.
+    """
+    r_map = FileShareReviserMap.objects.all()
+
+    return render_to_response(
+        'sysadmin/sys_reviseradmin_user_map.html', {
+            'r_map': r_map,
+        }, context_instance=RequestContext(request))
+
+@login_required
+@sys_staff_required
+def sys_reviser_admin_ignore(request):
+    """List all ignored users.
+    """
+    ignores = FileShareVerifyIgnore.objects.all()
+
+    return render_to_response(
+        'sysadmin/sys_reviseradmin_ignore.html', {
+            'ignores': ignores,
+        }, context_instance=RequestContext(request))
+
 @login_required_ajax
 def reviser_add(request):
     """Add reviser"""
@@ -99,10 +125,6 @@ def reviser_add(request):
     department_head_name = request.POST.get('department_head_name', None)
     department_head_account = request.POST.get('department_head_account', None)
 
-    comanager_head_name = request.POST.get('comanager_head_name', None)
-    comanager_head_account = request.POST.get('comanager_head_account', None)
-    comanager_head_email = request.POST.get('comanager_head_email', None)
-
     reviser1_name = request.POST.get('reviser1_name', None)
     reviser1_account = request.POST.get('reviser1_account', None)
     reviser1_email = request.POST.get('reviser1_email', None)
@@ -115,8 +137,7 @@ def reviser_add(request):
         FileShareReviserInfo.objects.add_file_share_reviser(
             department_name,
             department_head_name, department_head_account, department_head_email,
-            comanager_head_name, comanager_head_account, comanager_head_email,
-            reviser1_name, reviser1_account, reviser1_email,
+            '', '', '', reviser1_name, reviser1_account, reviser1_email,
             reviser2_name, reviser2_account, reviser2_email)
         result['success'] = True
         return HttpResponse(json.dumps(result), content_type=content_type)
@@ -124,6 +145,66 @@ def reviser_add(request):
         logger.error(e)
         result['error'] = _(u'Internal server error')
         return HttpResponse(json.dumps(result), status=500, content_type=content_type)
+
+@login_required_ajax
+def reviser_map_add(request):
+    """Add reviser map"""
+
+    if not request.user.is_staff or request.method != 'POST':
+        raise Http404
+
+    result = {}
+    content_type = 'application/json; charset=utf-8'
+
+    user_email = request.POST.get('user_email', None)
+    if not user_email:
+        result['error'] = 'Invalid email'
+        return HttpResponse(json.dumps(result), status=400,
+                            content_type=content_type)
+
+    if len(FileShareReviserMap.objects.filter(username=user_email)) > 0:
+        result['error'] = _('This user has already been added')
+        return HttpResponse(json.dumps(result), status=400, content_type=content_type)
+
+    reviser_email = request.POST.get('reviser_email', None)
+    if not reviser_email or not is_valid_email(reviser_email):
+        result['error'] = 'Invalid reviser email'
+        return HttpResponse(json.dumps(result), status=400, content_type=content_type)
+
+    reviser_name = request.POST.get('reviser_name', '')
+    reviser_account = request.POST.get('reviser_account', '')
+
+    FileShareReviserMap.objects.create(
+        username=user_email, reviser_name=reviser_name,
+        reviser_account=reviser_account, reviser_email=reviser_email)
+
+    result['success'] = True
+    return HttpResponse(json.dumps(result), content_type=content_type)
+
+@login_required_ajax
+def verify_ignore_add(request):
+    """Add verify ignore user"""
+
+    if not request.user.is_staff or request.method != 'POST':
+        raise Http404
+
+    result = {}
+    content_type = 'application/json; charset=utf-8'
+
+    user_email = request.POST.get('user_email', None)
+    if not user_email:
+        result['error'] = 'Invalid email'
+        return HttpResponse(json.dumps(result), status=400,
+                            content_type=content_type)
+
+    if len(FileShareVerifyIgnore.objects.filter(username=user_email)) > 0:
+        result['error'] = _('This user has already been added')
+        return HttpResponse(json.dumps(result), status=400, content_type=content_type)
+
+    FileShareVerifyIgnore.objects.create(username=user_email)
+
+    result['success'] = True
+    return HttpResponse(json.dumps(result), content_type=content_type)
 
 @login_required
 @sys_staff_required
@@ -134,6 +215,38 @@ def reviser_remove(request, reviser_info_id):
 
     try:
         FileShareReviserInfo.objects.get(id=reviser_info_id).delete()
+        messages.success(request, _(u'Success'))
+    except Exception as e:
+        logger.error(e)
+        messages.error(request, _(u'Failed'))
+
+    return HttpResponseRedirect(next)
+
+@login_required
+@sys_staff_required
+def reviser_map_remove(request, reviser_info_id):
+    """Remove reviser map"""
+    referer = request.META.get('HTTP_REFERER', None)
+    next = reverse('sys_reviser_admin_user_map') if referer is None else referer
+
+    try:
+        FileShareReviserMap.objects.get(id=reviser_info_id).delete()
+        messages.success(request, _(u'Success'))
+    except Exception as e:
+        logger.error(e)
+        messages.error(request, _(u'Failed'))
+
+    return HttpResponseRedirect(next)
+
+@login_required
+@sys_staff_required
+def verify_ignore_remove(request, pk):
+    """Remove reviser map"""
+    referer = request.META.get('HTTP_REFERER', None)
+    next = reverse('sys_reviser_admin_ignore') if referer is None else referer
+
+    try:
+        FileShareVerifyIgnore.objects.get(pk=pk).delete()
         messages.success(request, _(u'Success'))
     except Exception as e:
         logger.error(e)
@@ -329,7 +442,7 @@ def sys_links_report_export_excel(request):
                 logger.error(e)
                 continue
 
-            reviser_info = FileShareReviserInfo.objects.get_reviser_info(d_link)
+            reviser_info = get_reviser_info_by_user(d_link.username)
             if reviser_info is None:
                 continue
 

@@ -3,13 +3,18 @@
 {% block cur_revisers %}tab-cur{% endblock %}
 
 {% block right_panel %}
-
-<div class="hd ovhd">
-    <h3 class="fleft">{% trans "Revisers" %}</h3>
+<div class="tabnav ovhd">
+    <ul class="tabnav-tabs fleft">
+        <li class="tabnav-tab tabnav-tab-cur"><a href="{% url 'sys_reviser_admin' %}">{% trans "Department" %}</a></li>
+        <li class="tabnav-tab"><a href="{% url 'sys_reviser_admin_user_map' %}">{% trans "User" %}</a></li>
+        <li class="tabnav-tab"><a href="{% url 'sys_reviser_admin_ignore' %}">{% trans "Ignore List" %}</a></li>
+    </ul>
     <div class="fright">
         <button id="add-reviser-btn"><img src="{{ MEDIA_URL }}img/add.png" alt="" class="add vam" /><span class="vam">{% trans "Add reviser" %}</span></button>
     </div>
+    
 </div>
+
 
 <form id="add-reviser-form" action="" method="post" class="hide">{% csrf_token %}
     <h3>{% trans "Add reviser" %}</h3>
@@ -22,10 +27,30 @@
     <input type="text" name="department-head-account" id="department-head-account" placeholder="{% trans "Account" %}" class="input account" /><br />
     <input type="text" name="department-head-email" id="department-head-email" placeholder="{% trans "Email" %}" class="input" /><br />
 
-    <label for="comanager">{% trans "Co-manager" %}</label><br />
-    <input type="text" name="comanager-head-name" id="comanager-head-name" placeholder="{% trans "Name" %}" class="input name" />
-    <input type="text" name="comanager-head-account" id="comanager-head-account" placeholder="{% trans "Account" %}" class="input account" /><br />
-    <input type="text" name="comanager-head-email" id="comanager-head-email" placeholder="{% trans "Email" %}" class="input" /><br />
+    <label for="reviser1">{% trans "Reviser 1" %}</label><br />
+    <input type="text" name="reviser1-name" id="reviser1-name" placeholder="{% trans "Name" %}" class="input name" />
+    <input type="text" name="reviser1-account" id="reviser1-account" placeholder="{% trans "Account" %}" class="input account" /><br />
+    <input type="text" name="reviser1-email" id="reviser1-email" placeholder="{% trans "Email" %}" class="input" /><br />
+
+    <label for="reviser2">{% trans "Reviser 2" %}</label><br />
+    <input type="text" name="reviser2-name" id="reviser2-name" placeholder="{% trans "Name" %}" class="input name" />
+    <input type="text" name="reviser2-account" id="reviser2-account" placeholder="{% trans "Account" %}" class="input account" /><br />
+    <input type="text" name="reviser2-email" id="reviser2-email" placeholder="{% trans "Email" %}" class="input" /><br />
+
+    <p class="error hide"></p>
+    <button type="submit" class="submit">{% trans "Submit" %}</button>
+</form>
+
+<form id="edit-reviser-form" action="" method="post" class="hide">{% csrf_token %}
+    <h3>{% trans "Edit reviser" %}</h3>
+
+    <label for="department-name">{% trans "Department" %}</label><br />
+    <input type="text" name="department-name" id="department-name" placeholder="{% trans "Department" %}" class="input" /><br />
+
+    <label for="department-head">{% trans "Department Head" %}</label><br />
+    <input type="text" name="department-head-name" id="department-head-name" placeholder="{% trans "Name" %}" class="input name" />
+    <input type="text" name="department-head-account" id="department-head-account" placeholder="{% trans "Account" %}" class="input account" /><br />
+    <input type="text" name="department-head-email" id="department-head-email" placeholder="{% trans "Email" %}" class="input" /><br />
 
     <label for="reviser1">{% trans "Reviser 1" %}</label><br />
     <input type="text" name="reviser1-name" id="reviser1-name" placeholder="{% trans "Name" %}" class="input name" />
@@ -44,9 +69,8 @@
 {% if revisers %}
 <table>
     <tr>
-        <th width="18%">{% trans "Department" %}</th>
+        <th width="36%">{% trans "Department" %}</th>
         <th width="18%">{% trans "Department Head" %}</th>
-        <th width="18%">{% trans "Co-manager" %}</th>
         <th width="18%">{% trans "Reviser 1" %}</th>
         <th width="18%">{% trans "Reviser 2" %}</th>
         <th width="10%"><!--operation--></th>
@@ -55,11 +79,11 @@
     <tr>
         <td>{{ r.department_name }}</td>
         <td>{{ r.department_head_info|safe }}</td>
-        <td>{{ r.comanager_head_info|safe }}</td>
         <td>{{ r.reviser1_info|safe }}</td>
         <td>{{ r.reviser2_info|safe }}</td>
         <td>
           <a href="{% url 'reviser_remove' r.id %}" class="remove op vh">{% trans "Delete" %}</a>
+          <a href="#" class="edit op vh">{% trans "Edit" %}</a>
         </td>
     </tr>
     {% endfor %}
@@ -84,10 +108,6 @@ $('#add-reviser-form').submit(function() {
         department_head_name = $.trim(form.children('[name="department-head-name"]').val()),
         department_head_account = $.trim(form.children('[name="department-head-account"]').val()),
         department_head_email = $.trim(form.children('[name="department-head-email"]').val()),
-
-        comanager_head_name = $.trim(form.children('[name="comanager-head-name"]').val()),
-        comanager_head_account = $.trim(form.children('[name="comanager-head-account"]').val()),
-        comanager_head_email = $.trim(form.children('[name="comanager-head-email"]').val()),
 
         reviser1_name = $.trim(form.children('[name="reviser1-name"]').val()),
         reviser1_account = $.trim(form.children('[name="reviser1-account"]').val()),
@@ -124,10 +144,6 @@ $('#add-reviser-form').submit(function() {
         'department_head_account': department_head_account,
         'department_head_email': department_head_email,
 
-        'comanager_head_name': comanager_head_name,
-        'comanager_head_account': comanager_head_account,
-        'comanager_head_email': comanager_head_email,
-
         'reviser1_name': reviser1_name,
         'reviser1_account': reviser1_account,
         'reviser1_email': reviser1_email,
@@ -163,6 +179,11 @@ $('#add-reviser-form').submit(function() {
 $('#add-reviser-btn').click(function() {
         $('#add-reviser-form').modal();
         $('#simplemodal-container').css({'width':'auto'});
+});
+
+$('.edit').click(function() {
+    $('#edit-reviser-form').modal();
+    $('#simplemodal-container').css({'width':'auto'});
 });
 </script>
 {% endblock %}

@@ -386,6 +386,8 @@ from seahub.views.sysadmin_pingan import *
 urlpatterns += patterns(
     '',
     url(r'^sys/reviseradmin/$', sys_reviser_admin, name='sys_reviser_admin'),
+    url(r'^sys/reviseradmin/user/$', sys_reviser_admin_user_map, name='sys_reviser_admin_user_map'),
+    url(r'^sys/reviseradmin/ignore/$', sys_reviser_admin_ignore, name='sys_reviser_admin_ignore'),
     url(r'^sys/download-links-report/$', sys_download_links_report, name='sys_download_links_report'),
     url(r'^sys/download-links-report-search/$', sys_download_links_report_search, name='sys_download_links_report_search'),
     url(r'^sys/upload-links-report/$', sys_upload_links_report, name='sys_upload_links_report'),
@@ -393,6 +395,10 @@ urlpatterns += patterns(
     url(r'^sys/ajax-get-upload-files-info/$', ajax_get_upload_files_info, name='ajax_get_upload_files_info'),
     url(r'^sys/links-report/export-excel/$', sys_links_report_export_excel, name='sys_links_report_export_excel'),
     url(r'^reviseradmin/add/$', reviser_add, name="reviser_add"),
+    url(r'^reviseradmin/map-add/$', reviser_map_add, name="reviser_map_add"),
+    url(r'^reviseradmin/verify-ignore-add/$', verify_ignore_add, name="verify_ignore_add"),
     url(r'^reviseradmin/remove/(?P<reviser_info_id>\d+)/$', reviser_remove, name="reviser_remove"),
+    url(r'^reviseradmin/map-remove/(?P<reviser_info_id>\d+)/$', reviser_map_remove, name="reviser_map_remove"),
+    url(r'^reviseradmin/verify-ignore-remove/(?P<pk>\d+)/$', verify_ignore_remove, name="verify_ignore_remove"),
 )
 ########################### End PingAn Group related ########################
