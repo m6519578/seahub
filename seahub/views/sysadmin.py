@@ -879,6 +879,31 @@ def user_info(request, email):
         else:
             g.role = _('Member')
 
+######################### Start PingAn Group related ########################
+    from seahub.share.models import (FileShareVerifyIgnore, FileShareReviserMap, FileShareReviserInfo)
+    approving_chain_info = None
+
+    # department relationship third priority
+    d_profile = DetailedProfile.objects.get_detailed_profile_by_user(email)
+    if d_profile:
+        for row in FileShareReviserInfo.objects.all():
+            if row.department_name in d_profile.department:
+                if not row.department_head_email:
+                    continue
+                approving_chain_info = _('Department approving chain: %s.') % row
+
+    # user map second priority
+    r_map = FileShareReviserMap.objects.filter(username=email)
+    if len(r_map) > 0:
+        approving_chain_info = _('User approving chain: %s.') % r_map[0]
+
+    # ignore list first priority
+    if FileShareVerifyIgnore.objects.filter(username=email).exists():
+        approving_chain_info = _('This user is ignored, no human verify is required.')
+
+    if approving_chain_info is None:
+        approving_chain_info = _('This user does not belong to any approving chain.')
+######################### End PingAn Group related ##########################
     return render_to_response(
         'sysadmin/userinfo.html', {
             'owned_repos': owned_repos,
@@ -892,6 +917,10 @@ def user_info(request, email):
             'user_shared_links': user_shared_links,
             'enable_sys_admin_view_repo': ENABLE_SYS_ADMIN_VIEW_REPO,
             'personal_groups': personal_groups,
+######################### Start PingAn Group related ########################
+            'approving_chain_info': approving_chain_info,
+######################### End PingAn Group related ##########################
+
         }, context_instance=RequestContext(request))
 
 @login_required_ajax

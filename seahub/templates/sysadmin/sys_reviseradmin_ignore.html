@@ -2,6 +2,12 @@
 {% load i18n %}
 {% block cur_revisers %}tab-cur{% endblock %}
 
+{% block left_panel %}{{block.super}}
+<form action="{% url 'sys_reviser_admin_ignore' %}" method="get" class="side-search-form">
+    <input type="text" name="filter" class="input" value="" placeholder="{% trans "Search department or user..." %}" />
+</form>
+{% endblock %}
+
 {% block right_panel %}
 <div class="tabnav ovhd">
     <ul class="tabnav-tabs fleft">

@@ -3,6 +3,7 @@ from django.conf import settings
 ######################### Start PingAn Group related ########################
 ENABLE_FILESHARE_CHECK = getattr(settings, 'ENABLE_FILESHARE_CHECK', False)
 FUSE_MOUNT_POINT = getattr(settings, 'FUSE_MOUNT_POINT', '/tmp/seafile_fuse')
+ENABLE_FILESHARE_DLP_CHECK = getattr(settings, 'ENABLE_FILESHARE_DLP_CHECK', True)
 DLP_SCAN_POINT = getattr(settings, 'DLP_SCAN_POINT', '/tmp/dlp_scan')
 SHARE_LINK_BACKUP_LIBRARY = getattr(settings, 'SHARE_LINK_BACKUP_LIBRARY', None)
 

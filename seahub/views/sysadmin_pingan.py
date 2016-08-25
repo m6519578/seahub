@@ -35,11 +35,12 @@ logger = logging.getLogger(__name__)
 def sys_reviser_admin(request):
     """List all reviser.
     """
-    try:
+    search_filter = request.GET.get('filter', '')
+    if search_filter:
+        revisers = FileShareReviserInfo.objects.filter(
+            department_name__contains=search_filter)
+    else:
         revisers = FileShareReviserInfo.objects.all()
-    except Exception as e:
-        logger.errot(e)
-        revisers = None
 
     def format_td(name, account, email):
         l = []
@@ -79,7 +80,12 @@ def sys_reviser_admin(request):
 def sys_reviser_admin_user_map(request):
     """List all reviser user maps.
     """
-    r_map = FileShareReviserMap.objects.all()
+    search_filter = request.GET.get('filter', '')
+    if search_filter:
+        r_map = FileShareReviserMap.objects.filter(
+            username__contains=search_filter)
+    else:
+        r_map = FileShareReviserMap.objects.all()
 
     return render_to_response(
         'sysadmin/sys_reviseradmin_user_map.html', {
@@ -91,7 +97,12 @@ def sys_reviser_admin_user_map(request):
 def sys_reviser_admin_ignore(request):
     """List all ignored users.
     """
-    ignores = FileShareVerifyIgnore.objects.all()
+    search_filter = request.GET.get('filter', '')
+    if search_filter:
+        ignores = FileShareVerifyIgnore.objects.filter(
+            username__contains=search_filter)
+    else:
+        ignores = FileShareVerifyIgnore.objects.all()
 
     return render_to_response(
         'sysadmin/sys_reviseradmin_ignore.html', {

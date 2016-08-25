@@ -742,6 +742,9 @@ class FileShareReviserInfo(models.Model):
 
     objects = FileShareReviserInfoManager()
 
+    def __unicode__(self):
+        return '%s <--> %s %s %s' % (self.department_name, self.department_head_email, self.reviser1_email, self.reviser2_email)
+
 
 class FileShareReviserMap(models.Model):
     """Direct map for user and revisor, if there is a record in this table,
@@ -752,6 +755,8 @@ class FileShareReviserMap(models.Model):
     reviser_account = models.CharField(max_length=1024)
     reviser_email = models.EmailField()
 
+    def __unicode__(self):
+        return '%s <--> %s (%s)' % (self.username, self.reviser_name, self.reviser_email)
 
 class FileShareVerifyIgnore(models.Model):
     """Ignore user from share link verification. In some usercases, boss does

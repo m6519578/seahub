@@ -95,15 +95,16 @@ class Command(BaseCommand):
                     logger.error('Failed to remove %s' % symbol_link)
                     logger.error(exc)
 
-                if status == 1:
+                if status == 1 and e[1].share_link.is_verifing():
                     # Send emails to revisers for huamn check
                     self.email_revisers(e[1].share_link)
-                    # Save file to later review
-                    self.do_backup(e[1].share_link)
-                else:
-                    # email verify result to shared link owner
-                    email_verify_result(e[1].share_link,
-                                        e[1].share_link.username)
+
+                # save file to later review
+                self.do_backup(e[1].share_link)
+
+                # email DLP verify result to shared link owner
+                email_verify_result(e[1].share_link, e[1].share_link.username,
+                                    source='DLP', result_code=str(status))
 
     def query_dlp_status(self, partial_path, file_size, mtime):
         """Return 0 if there is no DLP record, 1 if pass DLP check, else failed.

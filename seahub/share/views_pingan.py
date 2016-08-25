@@ -7,7 +7,7 @@ import json
 import os
 
 from django.core.cache import cache
-from django.http import HttpResponse, HttpResponseRedirect, Http404
+from django.http import HttpResponse, HttpResponseRedirect
 from django.shortcuts import render_to_response
 from django.template import RequestContext
 from django.utils import timezone
@@ -16,11 +16,12 @@ from django.contrib import messages
 
 from seahub.auth.decorators import login_required, login_required_ajax
 from seahub.base.decorators import user_mods_check, require_POST
+from seahub.base.templatetags.seahub_tags import email2nickname
 from seahub.profile.models import DetailedProfile
 from seahub.share.constants import STATUS_VERIFING, STATUS_PASS, STATUS_VETO
 from seahub.share.models import (FileShare, FileShareReviserInfo,
                                  FileShareVerify, FileShareDownloads,
-                                 FileShareReceiver, FileShareReviserInfo)
+                                 FileShareReceiver)
 from seahub.share.share_link_checking import (
     email_reviser, email_verify_result, get_reviser_emails_by_user)
 from seahub.utils import gen_token, send_html_email
@@ -271,9 +272,10 @@ def ajax_change_dl_link_status(request):
         fileshare.expire_date = new_expire_date
         fileshare.save()
 
-    if fileshare.pass_verify() or fileshare.reject_verify():
-        # email verify result to shared link owner
-        email_verify_result(fileshare, fileshare.username)
+    # email verify result to shared link owner
+    email_verify_result(fileshare, fileshare.username,
+                        source="%s (%s)" % (email2nickname(username), username),
+                        result_code=str(status))
 
     return HttpResponse({}, status=200, content_type=content_type)
 

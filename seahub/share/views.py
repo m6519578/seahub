@@ -1231,7 +1231,21 @@ def ajax_get_download_link(request):
 ######################### Start PingAn Group related ########################
                 if ENABLE_FILESHARE_CHECK:
                     from .share_link_checking import check_share_link
-                    return check_share_link(request, fs, repo)
+                    check_share_link(request, fs, repo)
+
+                    if fs.pass_verify():
+                        data = json.dumps({'token': fs.token,
+                                           'download_link': fs.get_full_url(),
+                                           'password': passwd,
+                                       })
+                    else:
+                        data = json.dumps({'token': '',
+                                           'download_link': '',
+                                           'status': str(fs.get_status()),
+                                           'status_str': fs.get_status_str() +
+                                           u'<a href="%s">查看详情。</a>' % reverse('list_shared_links')})
+
+                    return HttpResponse(data, status=200, content_type=content_type)
 ######################### End PingAn Group related ##########################
         else:
             fs = FileShare.objects.get_dir_link_by_path(username, repo_id, path)
