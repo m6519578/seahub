@@ -23,33 +23,6 @@
 
 
 <form id="add-reviser-form" action="" method="post" class="hide">{% csrf_token %}
-    <h3>{% trans "Add reviser" %}</h3>
-
-    <label for="department-name">{% trans "Department" %}</label><br />
-    <input type="text" name="department-name" id="department-name" placeholder="{% trans "Department" %}" class="input" /><br />
-
-    <label for="department-head">{% trans "Department Head" %}</label><br />
-    <input type="text" name="department-head-name" id="department-head-name" placeholder="{% trans "Name" %}" class="input name" />
-    <input type="text" name="department-head-account" id="department-head-account" placeholder="{% trans "Account" %}" class="input account" /><br />
-    <input type="text" name="department-head-email" id="department-head-email" placeholder="{% trans "Email" %}" class="input" /><br />
-
-    <label for="reviser1">{% trans "Reviser 1" %}</label><br />
-    <input type="text" name="reviser1-name" id="reviser1-name" placeholder="{% trans "Name" %}" class="input name" />
-    <input type="text" name="reviser1-account" id="reviser1-account" placeholder="{% trans "Account" %}" class="input account" /><br />
-    <input type="text" name="reviser1-email" id="reviser1-email" placeholder="{% trans "Email" %}" class="input" /><br />
-
-    <label for="reviser2">{% trans "Reviser 2" %}</label><br />
-    <input type="text" name="reviser2-name" id="reviser2-name" placeholder="{% trans "Name" %}" class="input name" />
-    <input type="text" name="reviser2-account" id="reviser2-account" placeholder="{% trans "Account" %}" class="input account" /><br />
-    <input type="text" name="reviser2-email" id="reviser2-email" placeholder="{% trans "Email" %}" class="input" /><br />
-
-    <p class="error hide"></p>
-    <button type="submit" class="submit">{% trans "Submit" %}</button>
-</form>
-
-<form id="edit-reviser-form" action="" method="post" class="hide">{% csrf_token %}
-    <h3>{% trans "Edit reviser" %}</h3>
-
     <label for="department-name">{% trans "Department" %}</label><br />
     <input type="text" name="department-name" id="department-name" placeholder="{% trans "Department" %}" class="input" /><br />
 
@@ -82,18 +55,20 @@
         <th width="10%"><!--operation--></th>
     </tr>
     {% for r in revisers %}
-    <tr>
+    <tr data-dept_name="{{r.department_name}}" data-dept_head_name="{{ r.department_head_name}}" data-dept_head_account="{{ r.department_head_account}}" data-dept_head_email="{{ r.department_head_email}}" data-rv1_name="{{ r.reviser1_name}}" data-rv1_account="{{ r.reviser1_account}}" data-rv1_email="{{ r.reviser1_email}}" data-rv2_name="{{ r.reviser2_name}}" data-rv2_account="{{ r.reviser2_account}}" data-rv2_email="{{ r.reviser2_email}}">
         <td>{{ r.department_name }}</td>
         <td>{{ r.department_head_info|safe }}</td>
         <td>{{ r.reviser1_info|safe }}</td>
         <td>{{ r.reviser2_info|safe }}</td>
         <td>
-          <a href="{% url 'reviser_remove' r.id %}" class="remove op vh">{% trans "Delete" %}</a>
           <a href="#" class="edit op vh">{% trans "Edit" %}</a>
+          <a href="#" data-url="{% url 'reviser_remove' r.id %}" class="remove op vh">{% trans "Delete" %}</a>
         </td>
     </tr>
     {% endfor %}
 </table>
+
+{% include "snippets/admin_paginator.html" %}
 {% else %}
 <div class="empty-tips">
     <h2 class="alc">{% trans "No reviser has been added yet" %}</h2>
@@ -183,13 +158,49 @@ $('#add-reviser-form').submit(function() {
     return false;
 });
 $('#add-reviser-btn').click(function() {
-        $('#add-reviser-form').modal();
-        $('#simplemodal-container').css({'width':'auto'});
+    $('#add-reviser-form').find("input[type=text]").val("");
+    $('#add-reviser-form').modal();
+    $('#simplemodal-container').css({'width':'auto'});
 });
 
 $('.edit').click(function() {
-    $('#edit-reviser-form').modal();
+    var dept_name = $($(this).closest('tr')).data('dept_name');
+    var dept_head_name = $($(this).closest('tr')).data('dept_head_name');
+    var dept_head_account = $($(this).closest('tr')).data('dept_head_account');
+    var dept_head_email = $($(this).closest('tr')).data('dept_head_email');
+
+    var rv1_name = $($(this).closest('tr')).data('rv1_name');
+    var rv1_account = $($(this).closest('tr')).data('rv1_account');
+    var rv1_email = $($(this).closest('tr')).data('rv1_email');
+
+    var rv2_name = $($(this).closest('tr')).data('rv2_name');
+    var rv2_account = $($(this).closest('tr')).data('rv2_account');
+    var rv2_email = $($(this).closest('tr')).data('rv2_email');
+
+    $('#department-name', '#add-reviser-form').val(dept_name);
+    $('#department-head-name', '#add-reviser-form').val(dept_head_name);
+    $('#department-head-account', '#add-reviser-form').val(dept_head_account);
+    $('#department-head-email', '#add-reviser-form').val(dept_head_email);
+
+    $('#reviser1-name', '#add-reviser-form').val(rv1_name);
+    $('#reviser1-account', '#add-reviser-form').val(rv1_account);
+    $('#reviser1-email', '#add-reviser-form').val(rv1_email);
+
+    $('#reviser2-name', '#add-reviser-form').val(rv2_name);
+    $('#reviser2-account', '#add-reviser-form').val(rv2_account);
+    $('#reviser2-email', '#add-reviser-form').val(rv2_email);
+    
+    $('#add-reviser-form').modal();
     $('#simplemodal-container').css({'width':'auto'});
+
+    return false;
 });
+
+addConfirmTo($('.remove'), {
+    'title': "Remove reviser",
+    'con': "Sure ?",
+    'post': true
+});
+
 </script>
 {% endblock %}

@@ -37,10 +37,25 @@ def sys_reviser_admin(request):
     """
     search_filter = request.GET.get('filter', '')
     if search_filter:
-        revisers = FileShareReviserInfo.objects.filter(
+        qs = FileShareReviserInfo.objects.filter(
             department_name__contains=search_filter)
     else:
-        revisers = FileShareReviserInfo.objects.all()
+        qs = FileShareReviserInfo.objects.all()
+
+    # Make sure page request is an int. If not, deliver first page.
+    try:
+        current_page = int(request.GET.get('page', '1'))
+        per_page = int(request.GET.get('per_page', '100'))
+    except ValueError:
+        current_page = 1
+        per_page = 100
+
+    offset = per_page * (current_page - 1)
+    revisers_plus_one = qs[offset:offset + per_page + 1]
+    if len(revisers_plus_one) == per_page + 1:
+        page_next = True
+    else:
+        page_next = False
 
     def format_td(name, account, email):
         l = []
@@ -49,6 +64,7 @@ def sys_reviser_admin(request):
         if email: l.append(email)
         return '<br />'.join(l)
 
+    revisers = revisers_plus_one[:per_page]
     for r in revisers:
         r.department_head_info = format_td(
             r.department_head_name, r.department_head_account,
@@ -73,6 +89,11 @@ def sys_reviser_admin(request):
     return render_to_response(
         'sysadmin/sys_reviseradmin.html', {
             'revisers': revisers,
+            'current_page': current_page,
+            'prev_page': current_page - 1,
+            'next_page': current_page + 1,
+            'per_page': per_page,
+            'page_next': page_next,
         }, context_instance=RequestContext(request))
 
 @login_required
@@ -82,14 +103,34 @@ def sys_reviser_admin_user_map(request):
     """
     search_filter = request.GET.get('filter', '')
     if search_filter:
-        r_map = FileShareReviserMap.objects.filter(
+        qs = FileShareReviserMap.objects.filter(
             username__contains=search_filter)
     else:
-        r_map = FileShareReviserMap.objects.all()
+        qs = FileShareReviserMap.objects.all()
+
+    # Make sure page request is an int. If not, deliver first page.
+    try:
+        current_page = int(request.GET.get('page', '1'))
+        per_page = int(request.GET.get('per_page', '100'))
+    except ValueError:
+        current_page = 1
+        per_page = 100
+
+    offset = per_page * (current_page - 1)
+    r_map_plus_one = qs[offset:offset + per_page + 1]
+    if len(r_map_plus_one) == per_page + 1:
+        page_next = True
+    else:
+        page_next = False
 
     return render_to_response(
         'sysadmin/sys_reviseradmin_user_map.html', {
-            'r_map': r_map,
+            'r_map': r_map_plus_one[:per_page],
+            'current_page': current_page,
+            'prev_page': current_page - 1,
+            'next_page': current_page + 1,
+            'per_page': per_page,
+            'page_next': page_next,
         }, context_instance=RequestContext(request))
 
 @login_required
@@ -124,10 +165,6 @@ def reviser_add(request):
         result['error'] = _(u'Invalid department')
         return HttpResponse(json.dumps(result), status=400, content_type=content_type)
 
-    if FileShareReviserInfo.objects.filter(department_name=department_name):
-        result['error'] = _(u'This department has already been added')
-        return HttpResponse(json.dumps(result), status=400, content_type=content_type)
-
     department_head_email = request.POST.get('department_head_email', None)
     if not department_head_email or not is_valid_email(department_head_email):
         result['error'] = _(u'Invalid department head email')
@@ -145,6 +182,24 @@ def reviser_add(request):
     reviser2_email = request.POST.get('reviser2_email', None)
 
     try:
+        fs_rinfo = FileShareReviserInfo.objects.get(department_name=department_name)
+        fs_rinfo.department_head_name = department_head_name
+        fs_rinfo.department_head_account = department_head_account
+        fs_rinfo.department_head_email = department_head_email
+        fs_rinfo.reviser1_name = reviser1_name
+        fs_rinfo.reviser1_account = reviser1_account
+        fs_rinfo.reviser1_email = reviser1_email
+        fs_rinfo.reviser2_name = reviser2_name
+        fs_rinfo.reviser2_account = reviser2_account
+        fs_rinfo.reviser2_email = reviser2_email
+        fs_rinfo.save()
+        result['success'] = True
+        return HttpResponse(json.dumps(result), content_type=content_type)
+    except FileShareReviserInfo.DoesNotExist:
+        pass
+
+    # add new reviser info
+    try:
         FileShareReviserInfo.objects.add_file_share_reviser(
             department_name,
             department_head_name, department_head_account, department_head_email,
@@ -155,7 +210,8 @@ def reviser_add(request):
     except Exception as e:
         logger.error(e)
         result['error'] = _(u'Internal server error')
-        return HttpResponse(json.dumps(result), status=500, content_type=content_type)
+        return HttpResponse(json.dumps(result), status=500,
+                            content_type=content_type)
 
 @login_required_ajax
 def reviser_map_add(request):
@@ -173,10 +229,6 @@ def reviser_map_add(request):
         return HttpResponse(json.dumps(result), status=400,
                             content_type=content_type)
 
-    if len(FileShareReviserMap.objects.filter(username=user_email)) > 0:
-        result['error'] = _('This user has already been added')
-        return HttpResponse(json.dumps(result), status=400, content_type=content_type)
-
     reviser_email = request.POST.get('reviser_email', None)
     if not reviser_email or not is_valid_email(reviser_email):
         result['error'] = 'Invalid reviser email'
@@ -185,6 +237,19 @@ def reviser_map_add(request):
     reviser_name = request.POST.get('reviser_name', '')
     reviser_account = request.POST.get('reviser_account', '')
 
+    try:
+        fs_rm = FileShareReviserMap.objects.get(username=user_email)
+        # update
+        fs_rm.reviser_name = reviser_name
+        fs_rm.reviser_account = reviser_account
+        fs_rm.reviser_email = reviser_email
+        fs_rm.save()
+        result['success'] = True
+        return HttpResponse(json.dumps(result), content_type=content_type)
+    except FileShareReviserMap.DoesNotExist:
+        pass
+
+    # add
     FileShareReviserMap.objects.create(
         username=user_email, reviser_name=reviser_name,
         reviser_account=reviser_account, reviser_email=reviser_email)

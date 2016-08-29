@@ -13,6 +13,7 @@
     <ul class="tabnav-tabs fleft">
         <li class="tabnav-tab"><a href="{% url 'sys_reviser_admin' %}">{% trans "Department" %}</a></li>
         <li class="tabnav-tab tabnav-tab-cur"><a href="{% url 'sys_reviser_admin_user_map' %}">{% trans "User" %}</a></li>
+        <li class="tabnav-tab"><a href="{% url 'sys_reviser_admin_ignore' %}">{% trans "Ignore List" %}</a></li>
     </ul>
     <div class="fright">
         <button id="add-reviser-btn"><img src="{{ MEDIA_URL }}img/add.png" alt="" class="add vam" /><span class="vam">{% trans "Add reviser" %}</span></button>
@@ -22,8 +23,6 @@
 
 
 <form id="add-reviser-form" action="" method="post" class="hide">{% csrf_token %}
-    <h3>{% trans "Add reviser" %}</h3>
-
     <label for="email">{% trans "User" %}</label><br />
     <input type="text" name="email" id="email" placeholder="{% trans "email" %}" class="input" /><br />
 
@@ -46,18 +45,20 @@
         <th width="10%"><!--operation--></th>
     </tr>
     {% for r in r_map %}
-    <tr>
+    <tr data-username="{{ r.username }}" data-reviser_name="{{ r.reviser_name}}" data-reviser_account="{{ r.reviser_account}}" data-reviser_email="{{ r.reviser_email}}">
         <td>{{ r.username }}</td>
         <td>{{ r.reviser_name }}</td>
         <td>{{ r.reviser_account }}</td>
         <td>{{ r.reviser_email }}</td>
         <td>
-          <a href="{% url 'reviser_map_remove' r.id %}" class="remove op vh">{% trans "Delete" %}</a>
           <a href="#" class="edit op vh">{% trans "Edit" %}</a>
+          <a href="#" data-url="{% url 'reviser_map_remove' r.id %}" class="remove op vh">{% trans "Delete" %}</a>
         </td>
     </tr>
     {% endfor %}
 </table>
+
+{% include "snippets/admin_paginator.html" %}
 {% else %}
 <div class="empty-tips">
     <h2 class="alc">{% trans "No reviser has been added yet" %}</h2>
@@ -132,13 +133,32 @@ $('#add-reviser-form').submit(function() {
 });
 
 $('#add-reviser-btn').click(function() {
-        $('#add-reviser-form').modal();
-        $('#simplemodal-container').css({'width':'auto'});
+    $('#add-reviser-form').find("input[type=text]").val("");
+    $('#add-reviser-form').modal();
+    $('#simplemodal-container').css({'width':'auto'});
 });
 
 $('.edit').click(function() {
-    $('#edit-reviser-form').modal();
+    var username = $($(this).closest('tr')).data('username');
+    var reviser_name = $($(this).closest('tr')).data('reviser_name');
+    var reviser_account = $($(this).closest('tr')).data('reviser_account');
+    var reviser_email = $($(this).closest('tr')).data('reviser_email');
+
+    $('#email', '#add-reviser-form').val(username);
+    $('#reviser-name', '#add-reviser-form').val(reviser_name);
+    $('#reviser-account', '#add-reviser-form').val(reviser_account);
+    $('#reviser-email', '#add-reviser-form').val(reviser_email);
+
+    $('#add-reviser-form').modal();
     $('#simplemodal-container').css({'width':'auto'});
+    return false;
 });
+
+addConfirmTo($('.remove'), {
+    'title': "Remove reviser",
+    'con': "Sure ?",
+    'post': true
+});
+ 
 </script>
 {% endblock %}

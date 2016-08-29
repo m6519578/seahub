@@ -296,9 +296,13 @@ class FileShare(models.Model):
         """Return `True` if department head or revisers are verifying and need
         to be remind.
         """
-        fs_v = self.fileshareverify_set.all()[0]
-        if fs_v.department_head_status == 0 or fs_v.reviser_status == 0:
-            return True
+        fsv_all = self.fileshareverify_set.all()
+        if len(fsv_all) > 0:
+            fs_v = fsv_all[0]
+            if fs_v.department_head_status == 0 or fs_v.reviser_status == 0:
+                return True
+            else:
+                return False
         else:
             return False
 
