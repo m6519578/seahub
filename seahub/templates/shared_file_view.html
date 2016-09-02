@@ -34,9 +34,9 @@
         <div class="fright">
 {% comment "Start PingAn Group related" %}{% endcomment %}
             {% if need_verify %}
-            <span id="pass" class="hide" style="color: #60b044;">Review result: This file is passed by you.</span>
+            <span id="pass" class="hide" style="color: #60b044;">{% trans "Review result: This file is passed by you." %}</span>
 
-            <span id="veto" class="hide" style="color: #900;">Review result: This file is vetoed by you.</span>
+            <span id="veto" class="hide" style="color: #900;">{% trans "Review result: This file is vetoed by you." %}</span>
             <span class="review-btns hide">
                 <button id="pass-btn">{% trans "Approve"%}</button>
                 <button id="veto-btn" style="color: #900;">{% trans "Veto"%}</button>

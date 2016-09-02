@@ -24,7 +24,7 @@
         </li>
 {% comment "Start PingAn Group related" %}{% endcomment %}
         <li class="tab {% block cur_revisers %}{% endblock %}">
-            <a href="{% url "sys_reviser_admin" %}" class="org">{% trans "Approving Chain" %}</a>
+            <a href="{% url "sys_reviser_admin" %}"><span class="sf2-icon-organization"></span>{% trans "Approving Chain" %}</a>
         </li>
 {% comment "End PingAn Group related" %}{% endcomment %}
         {% if multi_tenancy %}

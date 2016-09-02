@@ -52,7 +52,7 @@
         {% endfor %}
         <li class="tab {% block cur_devices %}{% endblock %}"><a href="{{ SITE_ROOT }}#devices/"><span class="sf2-icon-monitor"></span>{% trans "Devices" %}</a></li>
         {% if user.is_file_link_reviser %}
-        <li class="tab {% block cur_file_share_verify %}{% endblock %}"><a href="{% url 'list_file_share_verify' %}" class="link-audit">{% trans "Link Audit" %}</a></li>
+        <li class="tab {% block cur_file_share_verify %}{% endblock %}"><a href="{% url 'list_file_share_verify' %}"><span class="sf2-icon-wrench"></span>{% trans "Link Audit" %}</a></li>
         {% endif %}
     </ul>
 
