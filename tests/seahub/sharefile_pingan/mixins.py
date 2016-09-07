@@ -13,7 +13,7 @@ class SetupRevisersMixin(object):
             # department head
             self.user.username, self.user.username, self.user.username,
             # co-manager
-            self.admin.username, self.admin.username, self.admin.username,
+            '', '', '',
             # reviser 1
             self.admin.username, self.admin.username, self.admin.username,
             # reviser 2

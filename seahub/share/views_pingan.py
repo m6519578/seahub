@@ -341,7 +341,7 @@ def ajax_remind_revisers(request):
     if fileshare.username != request.user.username:
         return HttpResponse({}, status=403, content_type=content_type)
 
-    revisers = get_reviser_emails_by_user(fileshare.username)
+    revisers = [x for x in get_reviser_emails_by_user(fileshare.username) if x.strip()]
     remind_list = list(set(revisers))
 
     fs_v = FileShareVerify.objects.get(share_link=fileshare)

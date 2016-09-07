@@ -4,16 +4,14 @@
 
 import os
 import logging
-import json
 from collections import namedtuple
 
-from django.core.urlresolvers import reverse
-from django.http import HttpResponse
+from django.utils import translation
 from django.utils.translation import ugettext as _
 
 from .settings import (FUSE_MOUNT_POINT, DLP_SCAN_POINT,
                        ENABLE_FILESHARE_DLP_CHECK)
-from seahub.profile.models import DetailedProfile
+from seahub.profile.models import Profile, DetailedProfile
 from seahub.share.constants import STATUS_PASS
 from seahub.share.models import (FileShareVerify, FileShareReviserInfo,
                                  FileShareReviserMap, FileShareVerifyIgnore)
@@ -104,6 +102,12 @@ def email_reviser(fileshare, reviser_email):
 def email_verify_result(fileshare, email_to, source='DLP', result_code=1):
     """Send email to `email_to` about shared link verify result.
     """
+    # save current language
+    cur_language = translation.get_language()
+
+    # get and active user language
+    user_language = Profile.objects.get_user_language(email_to)
+    translation.activate(user_language)
 
     if result_code == '1':
         result = _('Approved')
@@ -126,6 +130,9 @@ def email_verify_result(fileshare, email_to, source='DLP', result_code=1):
     except Exception as e:
         logger.error('Faied to send verify result email to %s' % email_to)
         logger.error(e)
+
+    # restore current language
+    translation.activate(cur_language)
 
 def get_reviser_info_by_user(username):
     """Get revisers info(username, account, email) by username.

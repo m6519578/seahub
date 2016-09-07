@@ -138,6 +138,9 @@ class Command(BaseCommand):
     def email_revisers(self, fileshare):
         emails = set(get_reviser_emails_by_user(fileshare.username))
         for email in emails:
+            if not email:
+                continue
+
             # send notice first
             file_shared_link_verify.send(sender=None,
                                          from_user=fileshare.username,
