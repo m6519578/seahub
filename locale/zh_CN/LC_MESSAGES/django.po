@@ -13,7 +13,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: seahub\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2016-09-02 11:43+0800\n"
+"POT-Creation-Date: 2016-10-24 15:25+0800\n"
 "PO-Revision-Date: 2016-05-06 13:37+0000\n"
 "Last-Translator: Daniel Pan <daniel.pan@seafile.com>\n"
 "Language-Team: Chinese (China) (http://www.transifex.com/haiwen/seahub/"
@@ -1050,6 +1050,8 @@ msgstr "删除联系人"
 #: seahub/templates/sysadmin/sys_org_search.html:28
 #: seahub/templates/sysadmin/useradmin_js.html:4
 #: seahub/templates/sysadmin/userinfo.html:300
+#, python-format
+#| msgid "Are you sure you want to delete %s ?"
 msgid "Are you sure you want to delete %s ?"
 msgstr "确定删除 %s ?"
 
@@ -2045,7 +2047,6 @@ msgstr "此用户没有创建或加入群组"
 #: seahub/share/templates/share/links.html:22
 #: seahub/share/templates/share/links_verify.html:27
 #: seahub/share/templates/share/links_verify.html:56
-#: seahub/share/templates/share/share_link_verify_result_email.html:13
 #: seahub/templates/sysadmin/sys_download_links_report_table.html:8
 #: seahub/templates/sysadmin/sys_inst_info_admins.html:16
 #: seahub/templates/sysadmin/sys_inst_info_user.html:16
@@ -2925,15 +2926,15 @@ msgstr "无效的验证码"
 msgid "Please enter a correct password."
 msgstr "请输入正确的密码。"
 
-#: seahub/share/models.py:235 seahub/share/share_link_checking.py:109
+#: seahub/share/models.py:235
 msgid "Approved"
 msgstr "审核通过"
 
-#: seahub/share/models.py:237 seahub/share/share_link_checking.py:113
+#: seahub/share/models.py:237
 msgid "Verifing"
 msgstr "正在审核"
 
-#: seahub/share/models.py:239 seahub/share/share_link_checking.py:111
+#: seahub/share/models.py:239
 msgid "Rejected"
 msgstr "否决"
 
@@ -3021,11 +3022,11 @@ msgstr "%s 否决"
 msgid "revisers (%(name1)s %(email1)s, %(name2)s %(email2)s)"
 msgstr "稽核 (%(name1)s %(email1)s, %(name2)s %(email2)s)"
 
-#: seahub/share/share_link_checking.py:88
+#: seahub/share/share_link_checking.py:86
 msgid "Please verify new share link."
 msgstr "请审核新创建的共享外链。"
 
-#: seahub/share/share_link_checking.py:120
+#: seahub/share/share_link_checking.py:118
 msgid "Verification status of your share link."
 msgstr "您共享外链的审核状态。"
 
@@ -3311,24 +3312,30 @@ msgstr ""
 "审批人请先登录 %(service_url)s ，再点击此链接审批，否则无权限访问。<br />（请"
 "使用chrome/firefox浏览器）"
 
-#: seahub/share/templates/share/share_link_verify_result_email.html:11
+#: seahub/share/templates/share/share_link_verify_result_email.html:13
 #, python-format
-msgid ""
-"Verification of your shared link for file %(file_name)s has been completed."
-msgstr "您的文件 %(file_name)s 已经审核完毕。"
+msgid "Your shared link for file %(file_name)s passed by %(source)s."
+msgstr "您的文件 %(file_name)s 已通过 %(source)s 审核。"
 
-#: seahub/share/templates/share/share_link_verify_result_email.html:12
-msgid "Source"
-msgstr "来源"
+#: seahub/share/templates/share/share_link_verify_result_email.html:15
+#, python-format
+msgid "Your shared link for file %(file_name)s rejected by %(source)s."
+msgstr "您的文件 %(file_name)s 未通过 %(source)s 审核。"
 
 #: seahub/share/templates/share/share_link_verify_result_email.html:17
 #, python-format
 msgid ""
-"For details, please refer to <a href=\"%(service_url)sshare/links/\">"
-"%(service_url)sshare/links/</a>."
+"Your shared link for file %(file_name)s is waiting for %(source)s to verify."
+msgstr "您的文件 %(file_name)s 正等待 %(source)s 审核。"
+
+#: seahub/share/templates/share/share_link_verify_result_email.html:22
+#, python-format
+msgid ""
+"For details, please refer to <a href=\"%(service_url)s/share/links/\">"
+"%(service_url)s/share/links/</a>."
 msgstr ""
-"请访问 <a href=\"%(service_url)sshare/links/\">%(service_url)sshare/links/</"
-"a>了解详情。"
+"请访问 <a href=\"%(service_url)s/share/links/\">%(service_url)s/share/links/</"
+"a> 了解详情。"
 
 #: seahub/share/templates/share/upload_info.html:8
 #: seahub/templates/file_access.html:27
@@ -5413,6 +5420,8 @@ msgid "auto detect"
 msgstr "自动检测"
 
 #: seahub/templates/snippets/file_share_popup.html:3
+#, python-format
+#| msgid "Share %(name)s"
 msgid "Share %(name)s"
 msgstr "共享 %(name)s"
 
@@ -5489,10 +5498,14 @@ msgid "Delete succeeded."
 msgstr "删除成功。"
 
 #: seahub/templates/snippets/repo_del_popup.html:3
+#, python-format
+#| msgid "Really want to delete %(lib_name)s ?"
 msgid "Really want to delete %(lib_name)s ?"
 msgstr "是否删除 %(lib_name)s ?"
 
 #: seahub/templates/snippets/repo_share_form.html:3
+#, python-format
+#| msgid "Share %(lib_name)s"
 msgid "Share %(lib_name)s"
 msgstr "共享 %(lib_name)s"
 
@@ -5725,6 +5738,8 @@ msgid "Transfer Library"
 msgstr "转让资料库"
 
 #: seahub/templates/sysadmin/repo_transfer_form.html:4
+#, python-format
+#| msgid "Transfer %(lib_name)s to:"
 msgid "Transfer %(lib_name)s to:"
 msgstr "转让 %(lib_name)s 给:"
 
@@ -5948,6 +5963,8 @@ msgid "Remove Trial"
 msgstr "移除试用"
 
 #: seahub/templates/sysadmin/sys_org_admin.html:138
+#, python-format
+#| msgid "Are you sure you want to remove trial for %s ?"
 msgid "Are you sure you want to remove trial for %s ?"
 msgstr "确定要为 %s 移除试用?"
 
@@ -7243,6 +7260,9 @@ msgstr "导出失败， 参数无效"
 #: seahub/views/wiki.py:139
 msgid "You do not have permission to create wiki"
 msgstr "你没有权限创建维基。"
+
+#~ msgid "Source"
+#~ msgstr "来源"
 
 #~ msgid "You do not have permission to generate shared link"
 #~ msgstr "你没有权限创建外链"

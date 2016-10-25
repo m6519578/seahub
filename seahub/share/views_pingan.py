@@ -21,7 +21,7 @@ from seahub.profile.models import DetailedProfile
 from seahub.share.constants import STATUS_VERIFING, STATUS_PASS, STATUS_VETO
 from seahub.share.models import (FileShare, FileShareReviserInfo,
                                  FileShareVerify, FileShareDownloads,
-                                 FileShareReceiver)
+                                 FileShareReceiver, FileShareReviserMap)
 from seahub.share.share_link_checking import (
     email_reviser, email_verify_result, get_reviser_emails_by_user)
 from seahub.utils import gen_token, send_html_email
@@ -34,8 +34,13 @@ logger = logging.getLogger(__name__)
 def list_share_links_by_reviser(username):
     """List all share links by reviser name.
     """
+    users = []
 
-    # get department list according to reviser info table
+    # 1. get users from revisermap
+    for e in FileShareReviserMap.objects.filter(reviser_email=username):
+        users.append(e.username)
+
+    # 2. get department list according to reviser info table
     dept_list = []
     for e in FileShareReviserInfo.objects.all():
         if e.department_head_email == username or \
@@ -43,16 +48,13 @@ def list_share_links_by_reviser(username):
            e.reviser1_email == username or e.reviser2_email == username:
             dept_list.append(e.department_name)
 
-    if not dept_list:
-        return []
-
-    # get all user list belong to those bepartments
-    users = []
-    for dept in dept_list:
-        for e in DetailedProfile.objects.filter(department__startswith=dept):
-            if e.user not in users:
+    if dept_list:
+        # get all user list belong to those departments
+        for dept in dept_list:
+            for e in DetailedProfile.objects.filter(department__startswith=dept):
                 users.append(e.user)
 
+    users = list(set(users))
     # get share link belong to those users
     return FileShare.objects.filter(username__in=users).order_by('-ctime')[:100]
 

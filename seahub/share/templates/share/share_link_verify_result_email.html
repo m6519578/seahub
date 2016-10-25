@@ -8,13 +8,17 @@
 <p style="color:#121214;font-size:14px;">{% trans "Hi," %}</p>
 
 <p style="font-size:14px;color:#434144;">
-{% blocktrans %}Verification of your shared link for file {{ file_name }} has been completed.{% endblocktrans%} <br />
-{% trans "Source"%}: {{ source }} <br />
-{% trans "Status" %}: {{ result }}
+{% if result_code == '1' %}
+{% blocktrans %}Your shared link for file {{ file_name }} passed by {{ source }}.{% endblocktrans %}<br />
+{% elif result_code == '2' %}
+{% blocktrans %}Your shared link for file {{ file_name }} rejected by {{ source }}.{% endblocktrans %}<br />
+{% else %}
+{% blocktrans %}Your shared link for file {{ file_name }} is waiting for {{ source }} to verify.{% endblocktrans %}<br />
+{% endif %}
 </p>
 
 <p style="font-size:14px;color:#434144;">
-    {% blocktrans %}For details, please refer to <a href="{{ service_url }}share/links/">{{ service_url }}share/links/</a>.{% endblocktrans %}
+    {% blocktrans %}For details, please refer to <a href="{{ service_url }}/share/links/">{{ service_url }}/share/links/</a>.{% endblocktrans %}
 </p>
 
 {% endautoescape %}

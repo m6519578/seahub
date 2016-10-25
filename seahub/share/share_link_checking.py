@@ -109,17 +109,11 @@ def email_verify_result(fileshare, email_to, source='DLP', result_code=1):
     user_language = Profile.objects.get_user_language(email_to)
     translation.activate(user_language)
 
-    if result_code == '1':
-        result = _('Approved')
-    elif result_code == '2':
-        result = _('Rejected')
-    else:
-        result = _('Verifing')
     c = {
         'source': source,
-        'result': result,
+        'result_code': result_code,
         'file_name': fileshare.get_name(),
-        'service_url': get_service_url(),
+        'service_url': get_service_url().rstrip('/'),
     }
     subject = _('Verification status of your share link.')
     try:

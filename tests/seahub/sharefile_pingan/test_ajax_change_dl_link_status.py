@@ -28,7 +28,8 @@ class AJAXChangeDLLinkStatusTest(BaseTestCase, SetupRevisersMixin, AddDownloadLi
         self.assertEqual(200, resp.status_code)
         assert FileShare.objects.all()[0].reject_verify() is True
 
-        assert 'Status: Rejected' in mail.outbox[0].body
+        assert 'reject' in mail.outbox[0].body
+        assert '/share/links/' in mail.outbox[0].body
 
     def test_can_pass(self):
         assert len(FileShare.objects.all()) == 1
@@ -42,4 +43,5 @@ class AJAXChangeDLLinkStatusTest(BaseTestCase, SetupRevisersMixin, AddDownloadLi
         self.assertEqual(200, resp.status_code)
         assert FileShare.objects.all()[0].is_verifing() is True  # still waiting for DLP
 
-        assert 'Status: Approved' in mail.outbox[0].body  # approved by user
+        assert 'pass' in mail.outbox[0].body  # approved by user
+        assert '/share/links/' in mail.outbox[0].body
