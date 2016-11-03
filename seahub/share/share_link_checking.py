@@ -4,6 +4,7 @@
 
 import os
 import logging
+import string
 from collections import namedtuple
 
 from django.utils import translation
@@ -78,7 +79,8 @@ def is_file_link_reviser(username):
     all_revisers += FileShareReviserMap.objects.values_list('reviser_email',
                                                             flat=True)
 
-    return True if username in set(all_revisers) else False
+    return True if username in set(map(string.lower, all_revisers)) else False
+
 
 def email_reviser(fileshare, reviser_email):
     """Send email to revisers to verify shared link.

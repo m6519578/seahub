@@ -70,3 +70,11 @@ class IsFileLinkReviserTest(BaseTestCase):
         reviser_name='', reviser_account='', reviser_email=self.user.username)
 
         assert is_file_link_reviser(self.user.username) is True
+
+    def test_uppercase_email(self):
+        assert is_file_link_reviser(self.user.username) is False
+
+        FileShareReviserMap.objects.create(username=self.user.username,
+        reviser_name='', reviser_account='', reviser_email=self.user.username.upper())
+
+        assert is_file_link_reviser(self.user.username) is True
