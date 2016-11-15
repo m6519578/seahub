@@ -34,7 +34,7 @@ class CommandTest(BaseTestCase, SetupRevisersMixin, AddDownloadLinkMixin):
         assert len(mail.outbox) > 0
         assert 'Please verify new share link.' == mail.outbox[0].subject
         assert 'Verification status of your share link.' == mail.outbox[-1].subject
-        assert 'Status: Approved' in mail.outbox[-1].body
+        assert 'passed by DLP' in mail.outbox[-1].body
 
     @patch.object(Command, 'query_dlp_status')
     def test_dlp_rejected(self, mock_query_dlp_status):
@@ -45,4 +45,4 @@ class CommandTest(BaseTestCase, SetupRevisersMixin, AddDownloadLinkMixin):
 
         assert len(mail.outbox) == 1
         assert 'Verification status of your share link.' == mail.outbox[0].subject
-        assert 'Status: Rejected' in mail.outbox[0].body
+        assert 'rejected by DLP' in mail.outbox[0].body
