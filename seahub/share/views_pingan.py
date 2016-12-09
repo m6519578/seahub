@@ -274,9 +274,10 @@ def ajax_change_dl_link_status(request):
         fileshare.expire_date = new_expire_date
         fileshare.save()
 
+    from django.utils.encoding import smart_text
     # email verify result to shared link owner
     email_verify_result(fileshare, fileshare.username,
-                        source="%s (%s)" % (email2nickname(username), username),
+                        source="%s (%s)" % (smart_text(email2nickname(username)), username),
                         result_code=str(status))
 
     return HttpResponse({}, status=200, content_type=content_type)
