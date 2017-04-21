@@ -11,6 +11,7 @@ from django.http import HttpResponse, HttpResponseRedirect
 from django.shortcuts import render_to_response
 from django.template import RequestContext
 from django.utils import timezone
+from django.utils.encoding import smart_text
 from django.utils.translation import ugettext as _
 from django.contrib import messages
 
@@ -19,11 +20,12 @@ from seahub.base.decorators import user_mods_check, require_POST
 from seahub.base.templatetags.seahub_tags import email2nickname
 from seahub.profile.models import DetailedProfile
 from seahub.share.constants import STATUS_VERIFING, STATUS_PASS, STATUS_VETO
-from seahub.share.models import (FileShare, FileShareReviserInfo,
+from seahub.share.models import (FileShare, FileShareReviserChain,
                                  FileShareVerify, FileShareDownloads,
                                  FileShareReceiver, FileShareReviserMap)
 from seahub.share.share_link_checking import (
-    email_reviser, email_verify_result, get_reviser_emails_by_user)
+    email_reviser, email_verify_result, get_reviser_info_by_user)
+from seahub.share.signals import file_shared_link_verify
 from seahub.utils import gen_token, send_html_email
 from seahub.utils.ms_excel import write_xls
 from seahub.settings import SITE_ROOT
@@ -40,12 +42,13 @@ def list_share_links_by_reviser(username):
     for e in FileShareReviserMap.objects.filter(reviser_email=username):
         users.append(e.username)
 
-    # 2. get department list according to reviser info table
+    # 2. get department list according to reviser chain table
     dept_list = []
-    for e in FileShareReviserInfo.objects.all():
-        if e.department_head_email == username or \
+    for e in FileShareReviserChain.objects.all():  # TODO: performance issue?
+        if e.line_manager_email == username or \
+           e.department_head_email == username or \
            e.comanager_head_email == username or \
-           e.reviser1_email == username or e.reviser2_email == username:
+           e.compliance_owner_email == username:
             dept_list.append(e.department_name)
 
     if dept_list:
@@ -84,34 +87,46 @@ def get_verify_link_by_user(username):
         user_pass = False
         user_veto = False
 
-        revisers = get_reviser_emails_by_user(fs.username)
-        if username in revisers:
-            if username == revisers[0]:
-                if fs_verify.department_head_pass():
-                    user_pass = True
-                if fs_verify.department_head_veto():
-                    user_veto = True
+        info = get_reviser_info_by_user(fs.username)
+        if info is None:
+            logger.error('No reviser info found for user: %s' % fs.username)
+            continue
 
-                if fs_verify.department_head_vtime:
-                    fs.verify_time = fs_verify.department_head_vtime
+        if username == info.line_manager_email:
+            if fs_verify.line_manager_pass():
+                user_pass = True
+            if fs_verify.line_manager_veto():
+                user_veto = True
 
-            elif username == revisers[1]:
-                if fs_verify.comanager_head_pass():
-                    user_pass = True
-                if fs_verify.comanager_head_veto():
-                    user_veto = True
+            if fs_verify.line_manager_vtime:
+                fs.verify_time = fs_verify.line_manager_vtime
 
-                if fs_verify.comanager_head_vtime:
-                    fs.verify_time = fs_verify.comanager_head_vtime
+        elif username == info.department_head_email:
+            if fs_verify.department_head_pass():
+                user_pass = True
+            if fs_verify.department_head_veto():
+                user_veto = True
 
-            elif username == revisers[2] or username == revisers[3]:
-                if fs_verify.revisers_pass():
-                    user_pass = True
-                if fs_verify.revisers_veto():
-                    user_veto = True
+            if fs_verify.department_head_vtime:
+                fs.verify_time = fs_verify.department_head_vtime
 
-                if fs_verify.reviser_vtime:
-                    fs.verify_time = fs_verify.reviser_vtime
+        elif username == info.comanager_head_email:
+            if fs_verify.comanager_head_pass():
+                user_pass = True
+            if fs_verify.comanager_head_veto():
+                user_veto = True
+
+            if fs_verify.comanager_head_vtime:
+                fs.verify_time = fs_verify.comanager_head_vtime
+
+        elif username == info.compliance_owner_email:
+            if fs_verify.compliance_owner_pass():
+                user_pass = True
+            if fs_verify.compliance_owner_veto():
+                user_veto = True
+
+            if fs_verify.compliance_owner_vtime:
+                fs.verify_time = fs_verify.compliance_owner_vtime
 
         if user_pass or user_veto:
             fs.user_pass = user_pass
@@ -259,7 +274,11 @@ def ajax_change_dl_link_status(request):
         return HttpResponse({}, status=400, content_type=content_type)
 
     username = request.user.username
-    revisers = get_reviser_emails_by_user(fileshare.username)
+    reviser_info = get_reviser_info_by_user(fileshare.username)
+    revisers = [] if reviser_info is None else [
+        reviser_info.line_manager_email, reviser_info.department_head_email,
+        reviser_info.comanager_head_email, reviser_info.compliance_owner_email,
+    ]
     if username not in revisers:
         return HttpResponse({}, status=403, content_type=content_type)
 
@@ -274,7 +293,20 @@ def ajax_change_dl_link_status(request):
         fileshare.expire_date = new_expire_date
         fileshare.save()
 
-    from django.utils.encoding import smart_text
+    # email next reviser in revisers chain if current reviser approved
+    next_reviser = None
+    for idx, elem in enumerate(revisers):
+        if elem == username and idx < len(revisers) - 1:
+            next_reviser = revisers[idx + 1]
+
+    if status == STATUS_PASS and next_reviser is not None:
+        # send notice first
+        file_shared_link_verify.send(sender=None,
+                                     from_user=fileshare.username,
+                                     to_user=next_reviser,
+                                     token=fileshare.token)
+        email_reviser(fileshare, next_reviser)
+
     # email verify result to shared link owner
     email_verify_result(fileshare, fileshare.username,
                         source="%s (%s)" % (smart_text(email2nickname(username)), username),
@@ -344,19 +376,22 @@ def ajax_remind_revisers(request):
     if fileshare.username != request.user.username:
         return HttpResponse({}, status=403, content_type=content_type)
 
-    revisers = [x for x in get_reviser_emails_by_user(fileshare.username) if x.strip()]
-    remind_list = list(set(revisers))
-
+    reviser_info = get_reviser_info_by_user(fileshare.username)
     fs_v = FileShareVerify.objects.get(share_link=fileshare)
-    if fs_v.department_head_status != STATUS_VERIFING:
-        remind_list = [x for x in remind_list if x != revisers[0]]
 
-    if fs_v.reviser_status != STATUS_VERIFING:
-        remind_list = [x for x in remind_list if x != revisers[2]]
-        remind_list = [x for x in remind_list if x != revisers[3]]
+    if fs_v.line_manager_verifying():
+        send_to = reviser_info.line_manager_email
+    elif fs_v.department_head_verifying():
+        send_to = reviser_info.department_head_email
+    elif fs_v.comanager_head_verifying():
+        send_to = reviser_info.comanager_head_email
+    elif fs_v.compliance_owner_verifying():
+        send_to = reviser_info.compliance_owner_email
+    else:
+        return HttpResponse({}, status=400, content_type=content_type)
 
-    for x in remind_list:
-        email_reviser(fileshare, x)
-
-    return HttpResponse(json.dumps({'sent': remind_list}),
+    email_reviser(fileshare, send_to)
+    logger.info('An remind email sent to %s triggered by user %s' % (
+        send_to, fileshare.username))
+    return HttpResponse(json.dumps({'sent': [send_to]}),
                         status=200, content_type=content_type)

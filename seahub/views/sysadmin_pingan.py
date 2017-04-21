@@ -13,7 +13,6 @@ from django.shortcuts import render_to_response
 from django.template import RequestContext
 from django.template.defaultfilters import filesizeformat
 from django.template.loader import render_to_string
-from django.utils.html import escape
 from django.utils.translation import ugettext as _
 
 from seahub.base.decorators import sys_staff_required
@@ -21,7 +20,7 @@ from seahub.auth.decorators import login_required, login_required_ajax
 from seahub.utils import gen_shared_upload_link, is_valid_email
 from seahub.utils.ms_excel import write_xls
 from seahub.share.models import FileShare, UploadLinkShare, FileShareVerify, \
-    FileShareReviserInfo, UploadLinkShareUploads, FileShareDownloads, \
+    FileShareReviserChain, UploadLinkShareUploads, FileShareDownloads, \
     FileShareReviserMap, FileShareVerifyIgnore
 from seahub.share.share_link_checking import get_reviser_info_by_user
 from seahub.share.constants import STATUS_VERIFING, STATUS_PASS, STATUS_VETO
@@ -37,10 +36,10 @@ def sys_reviser_admin(request):
     """
     search_filter = request.GET.get('filter', '')
     if search_filter:
-        qs = FileShareReviserInfo.objects.filter(
+        qs = FileShareReviserChain.objects.filter(
             department_name__contains=search_filter)
     else:
-        qs = FileShareReviserInfo.objects.all()
+        qs = FileShareReviserChain.objects.all()
 
     # Make sure page request is an int. If not, deliver first page.
     try:
@@ -66,6 +65,11 @@ def sys_reviser_admin(request):
 
     revisers = revisers_plus_one[:per_page]
     for r in revisers:
+
+        r.line_manager_info = format_td(
+            r.line_manager_name, r.line_manager_account,
+            r.line_manager_email)
+
         r.department_head_info = format_td(
             r.department_head_name, r.department_head_account,
             r.department_head_email)
@@ -74,17 +78,9 @@ def sys_reviser_admin(request):
             r.comanager_head_name, r.comanager_head_account,
             r.comanager_head_email)
 
-        r.reviser1_info = format_td(
-            r.reviser1_name, r.reviser1_account,
-            r.reviser1_email)
-
-        r.reviser2_info = format_td(
-            r.reviser2_name, r.reviser2_account,
-            r.reviser2_email)
-
-        r.comanager_head_info = format_td(
-            r.comanager_head_name, r.comanager_head_account,
-            r.comanager_head_email)
+        r.compliance_owner_info = format_td(
+            r.compliance_owner_name, r.compliance_owner_account,
+            r.compliance_owner_email)
 
     return render_to_response(
         'sysadmin/sys_reviseradmin.html', {
@@ -165,46 +161,69 @@ def reviser_add(request):
         result['error'] = _(u'Invalid department')
         return HttpResponse(json.dumps(result), status=400, content_type=content_type)
 
+    line_manager_name = request.POST.get('line_manager_name', None)
+    line_manager_account = request.POST.get('line_manager_account', None)
+    line_manager_email = request.POST.get('line_manager_email', None)
+    if not line_manager_email or not is_valid_email(line_manager_email):
+        result['error'] = _(u'Invalid line manager email')
+        return HttpResponse(json.dumps(result), status=400, content_type=content_type)
+
+    department_head_name = request.POST.get('department_head_name', None)
+    department_head_account = request.POST.get('department_head_account', None)
     department_head_email = request.POST.get('department_head_email', None)
     if not department_head_email or not is_valid_email(department_head_email):
         result['error'] = _(u'Invalid department head email')
         return HttpResponse(json.dumps(result), status=400, content_type=content_type)
 
-    department_head_name = request.POST.get('department_head_name', None)
-    department_head_account = request.POST.get('department_head_account', None)
+    comanager_head_name = request.POST.get('comanager_head_name', None)
+    comanager_head_account = request.POST.get('comanager_head_account', None)
+    comanager_head_email = request.POST.get('comanager_head_email', None)
+    if not comanager_head_email or not is_valid_email(comanager_head_email):
+        result['error'] = _(u'Invalid comanager head email')
+        return HttpResponse(json.dumps(result), status=400, content_type=content_type)
 
-    reviser1_name = request.POST.get('reviser1_name', None)
-    reviser1_account = request.POST.get('reviser1_account', None)
-    reviser1_email = request.POST.get('reviser1_email', None)
-
-    reviser2_name = request.POST.get('reviser2_name', None)
-    reviser2_account = request.POST.get('reviser2_account', None)
-    reviser2_email = request.POST.get('reviser2_email', None)
+    compliance_owner_name = request.POST.get('compliance_owner_name', None)
+    compliance_owner_account = request.POST.get('compliance_owner_account', None)
+    compliance_owner_email = request.POST.get('compliance_owner_email', None)
+    if not compliance_owner_email or not is_valid_email(compliance_owner_email):
+        result['error'] = _(u'Invalid compliance owner email')
+        return HttpResponse(json.dumps(result), status=400, content_type=content_type)
 
     try:
-        fs_rinfo = FileShareReviserInfo.objects.get(department_name=department_name)
-        fs_rinfo.department_head_name = department_head_name
-        fs_rinfo.department_head_account = department_head_account
-        fs_rinfo.department_head_email = department_head_email
-        fs_rinfo.reviser1_name = reviser1_name
-        fs_rinfo.reviser1_account = reviser1_account
-        fs_rinfo.reviser1_email = reviser1_email
-        fs_rinfo.reviser2_name = reviser2_name
-        fs_rinfo.reviser2_account = reviser2_account
-        fs_rinfo.reviser2_email = reviser2_email
-        fs_rinfo.save()
+        fs_rchain = FileShareReviserChain.objects.get(department_name=department_name)
+
+        fs_rchain.line_manager_name = line_manager_name
+        fs_rchain.line_manager_account = line_manager_account
+        fs_rchain.line_manager_email = line_manager_email
+
+        fs_rchain.department_head_name = department_head_name
+        fs_rchain.department_head_account = department_head_account
+        fs_rchain.department_head_email = department_head_email
+
+        fs_rchain.comanager_head_name = comanager_head_name
+        fs_rchain.comanager_head_account = comanager_head_account
+        fs_rchain.comanager_head_email = comanager_head_email
+
+        fs_rchain.compliance_owner_name = compliance_owner_name
+        fs_rchain.compliance_owner_account = compliance_owner_account
+        fs_rchain.compliance_owner_email = compliance_owner_email
+
+        fs_rchain.save()
+
         result['success'] = True
         return HttpResponse(json.dumps(result), content_type=content_type)
-    except FileShareReviserInfo.DoesNotExist:
+    except FileShareReviserChain.DoesNotExist:
         pass
 
-    # add new reviser info
+    # add new reviser chain
     try:
-        FileShareReviserInfo.objects.add_file_share_reviser(
+        FileShareReviserChain.objects.add_file_share_reviser(
             department_name,
+            line_manager_name, line_manager_account, line_manager_email,
             department_head_name, department_head_account, department_head_email,
-            '', '', '', reviser1_name, reviser1_account, reviser1_email,
-            reviser2_name, reviser2_account, reviser2_email)
+            comanager_head_name, comanager_head_account, comanager_head_email,
+            compliance_owner_name, compliance_owner_account, compliance_owner_email)
+
         result['success'] = True
         return HttpResponse(json.dumps(result), content_type=content_type)
     except Exception as e:
@@ -290,7 +309,7 @@ def reviser_remove(request, reviser_info_id):
     next = reverse('sys_reviser_admin') if referer is None else referer
 
     try:
-        FileShareReviserInfo.objects.get(id=reviser_info_id).delete()
+        FileShareReviserChain.objects.get(id=reviser_info_id).delete()
         messages.success(request, _(u'Success'))
     except Exception as e:
         logger.error(e)
@@ -350,10 +369,10 @@ def ajax_get_upload_files_info(request):
 def prepare_download_links(download_links):
     for d_link in download_links:
         d_link.filename = d_link.get_name()
-        d_link.shared_link = d_link.get_full_url()
-        d_link.dl_cnt = FileShareDownloads.objects.filter(share_link=d_link).count()
         d_link.first_dl_time = FileShareDownloads.objects.get_first_download_time(share_link=d_link)
+        d_link.dl_cnt = FileShareDownloads.objects.filter(share_link=d_link).count()
         d_link.is_expired = d_link.is_expired()
+        d_link.shared_link = d_link.get_full_url()
 
     return download_links
 
@@ -489,14 +508,22 @@ def sys_links_report_export_excel(request):
         head = [
             _("Name"),
             _("From"),
+            _("Status"),
             _("DLP Status"),
+            _("Time"),
+            _("Line Manager Email"),
+            _("Line Manager Status"),
             _("Time"),
             _("Department Head Email"),
             _("Department Head Status"),
             _("Time"),
-            _("Reviser Email"),
-            _("Reviser Status"),
+            _("Comanager Head Email"),
+            _("Comanager Head Status"),
             _("Time"),
+            _("Compliance Owner Email"),
+            _("Compliance Owner Status"),
+            _("Time"),
+            _("Created at"),
             _("First Download Time"),
             _("Downloads"),
             _("Expiration"),
@@ -535,6 +562,23 @@ def sys_links_report_export_excel(request):
             if fs_verify.DLP_vtime:
                 DLP_vtime = fs_verify.DLP_vtime.strftime('%Y-%m-%d')
 
+            # get line manager verify status
+            line_manager_status = '--'
+            line_manager_vtime = '--'
+            line_manager_email = '--'
+            if fs_verify.line_manager_status == STATUS_VERIFING:
+                line_manager_status = _('verifing')
+            elif fs_verify.line_manager_status == STATUS_PASS:
+                line_manager_status = _('pass')
+            elif fs_verify.line_manager_status == STATUS_VETO:
+                line_manager_status = _('veto')
+
+            if fs_verify.line_manager_vtime:
+                line_manager_vtime = fs_verify.line_manager_vtime.strftime('%Y-%m-%d')
+
+            if reviser_info.line_manager_email:
+                line_manager_email = reviser_info.line_manager_email
+
             # get department head verify status
             department_head_status = '--'
             department_head_vtime = '--'
@@ -552,35 +596,60 @@ def sys_links_report_export_excel(request):
             if reviser_info.department_head_email:
                 department_head_email = reviser_info.department_head_email
 
-            # get reviser verify status
-            reviser_status = '--'
-            reviser_vtime = '--'
-            reviser_email = '--'
-            if fs_verify.reviser_status == STATUS_VERIFING:
-                reviser_status = _('verifing')
-            elif fs_verify.reviser_status == STATUS_PASS:
-                reviser_status = _('pass')
-            elif fs_verify.reviser_status == STATUS_VETO:
-                reviser_status = _('veto')
+            # get comanager head verify status
+            comanager_head_status = '--'
+            comanager_head_vtime = '--'
+            comanager_head_email = '--'
+            if fs_verify.comanager_head_status == STATUS_VERIFING:
+                comanager_head_status = _('verifing')
+            elif fs_verify.comanager_head_status == STATUS_PASS:
+                comanager_head_status = _('pass')
+            elif fs_verify.comanager_head_status == STATUS_VETO:
+                comanager_head_status = _('veto')
 
-            if fs_verify.reviser_vtime:
-                reviser_vtime = fs_verify.reviser_vtime.strftime('%Y-%m-%d')
+            if fs_verify.comanager_head_vtime:
+                comanager_head_vtime = fs_verify.comanager_head_vtime.strftime('%Y-%m-%d')
 
-            if reviser_info.reviser1_email or reviser_info.reviser2_email:
-                reviser_email = reviser_info.reviser1_email + ',' + reviser_info.reviser2_email
+            if reviser_info.comanager_head_email:
+                comanager_head_email = reviser_info.comanager_head_email
+
+            # get compliance owner verify status
+            compliance_owner_status = '--'
+            compliance_owner_vtime = '--'
+            compliance_owner_email = '--'
+            if fs_verify.compliance_owner_status == STATUS_VERIFING:
+                compliance_owner_status = _('verifing')
+            elif fs_verify.compliance_owner_status == STATUS_PASS:
+                compliance_owner_status = _('pass')
+            elif fs_verify.compliance_owner_status == STATUS_VETO:
+                compliance_owner_status = _('veto')
+
+            if fs_verify.compliance_owner_vtime:
+                compliance_owner_vtime = fs_verify.compliance_owner_vtime.strftime('%Y-%m-%d')
+
+            if reviser_info.compliance_owner_email:
+                compliance_owner_email = reviser_info.compliance_owner_email
 
             # prepare excel data
             row = [
                 d_link.filename,
                 d_link.username,
+                d_link.get_short_status_str(),
                 DLP_status,
                 DLP_vtime,
+                line_manager_email,
+                line_manager_status,
+                line_manager_vtime,
                 department_head_email,
                 department_head_status,
                 department_head_vtime,
-                reviser_email,
-                reviser_status,
-                reviser_vtime,
+                comanager_head_email,
+                comanager_head_status,
+                comanager_head_vtime,
+                compliance_owner_email,
+                compliance_owner_status,
+                compliance_owner_vtime,
+                d_link.ctime.strftime('%Y-%m-%d'),
                 d_link.first_dl_time.strftime('%Y-%m-%d') if d_link.first_dl_time else '--',
                 d_link.dl_cnt,
                 d_link.expire_date.strftime('%Y-%m-%d') if d_link.expire_date else '--',

@@ -13,7 +13,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: seahub\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2016-10-24 15:25+0800\n"
+"POT-Creation-Date: 2017-04-21 15:04+0800\n"
 "PO-Revision-Date: 2016-05-06 13:37+0000\n"
 "Last-Translator: Daniel Pan <daniel.pan@seafile.com>\n"
 "Language-Team: Chinese (China) (http://www.transifex.com/haiwen/seahub/"
@@ -65,7 +65,7 @@ msgstr "密码错误"
 #: seahub/views/__init__.py:539 seahub/views/ajax.py:722
 #: seahub/views/ajax.py:756 seahub/views/ajax.py:799 seahub/views/ajax.py:842
 #: seahub/views/ajax.py:2460 seahub/views/sysadmin.py:2201
-#: seahub/views/sysadmin_pingan.py:212
+#: seahub/views/sysadmin_pingan.py:231
 msgid "Internal server error"
 msgstr "服务器内部错误"
 
@@ -183,7 +183,7 @@ msgstr "删除了资料库 %(library_name)s"
 #: seahub/templates/sysadmin/settings.html:203
 #: seahub/templates/sysadmin/sys_org_admin.html:126
 #: seahub/templates/sysadmin/sys_org_set_quota_js.html:35
-#: seahub/templates/sysadmin/sys_reviseradmin.html:153
+#: seahub/templates/sysadmin/sys_reviseradmin.html:202
 #: seahub/templates/sysadmin/sys_reviseradmin_ignore.html:95
 #: seahub/templates/sysadmin/sys_reviseradmin_user_map.html:127
 #: seahub/templates/sysadmin/sys_useradmin.html:194
@@ -201,7 +201,7 @@ msgstr "请检查网络是否已连接。"
 #: seahub/api2/templates/api2/user_msg_body.html:20
 #: seahub/share/templates/share/links.html:30
 #: seahub/share/templates/share/links_verify.html:32
-#: seahub/share/templates/share/links_verify.html:65
+#: seahub/share/templates/share/links_verify.html:64
 #: seahub/templates/js/templates.html:1258
 #: seahub/templates/repo_history_view.html:73
 #: seahub/templates/snippets/repo_dir_trash_tr.html:21
@@ -506,7 +506,7 @@ msgstr "当前头像："
 #: seahub/templates/sysadmin/sys_org_info_setting.html:29
 #: seahub/templates/sysadmin/sys_org_search.html:12
 #: seahub/templates/sysadmin/sys_repo_search.html:18
-#: seahub/templates/sysadmin/sys_reviseradmin.html:45
+#: seahub/templates/sysadmin/sys_reviseradmin.html:49
 #: seahub/templates/sysadmin/sys_reviseradmin_ignore.html:30
 #: seahub/templates/sysadmin/sys_reviseradmin_user_map.html:35
 #: seahub/templates/sysadmin/sys_upload_links_report_search.html:16
@@ -706,7 +706,7 @@ msgstr[0] "%(seconds)d 秒前"
 #: seahub/share/templates/share/list_priv_shared_folders.html:35
 #: seahub/share/templates/share/repos.html:23
 #: seahub/share/templates/share/repos.html:25
-#: seahub/share/templates/share/repos.html:39 seahub/share/views.py:478
+#: seahub/share/templates/share/repos.html:39 seahub/share/views.py:476
 #: seahub/share/views.py:573 seahub/templates/js/templates.html:10
 #: seahub/templates/js/templates.html:554
 #: seahub/templates/js/templates.html:581
@@ -734,7 +734,7 @@ msgstr "可读写"
 
 #: seahub/base/templatetags/seahub_tags.py:470
 #: seahub/share/templates/share/list_priv_shared_folders.html:33
-#: seahub/share/templates/share/repos.html:37 seahub/share/views.py:480
+#: seahub/share/templates/share/repos.html:37 seahub/share/views.py:478
 #: seahub/share/views.py:575 seahub/templates/js/templates.html:11
 #: seahub/templates/js/templates.html:555
 #: seahub/templates/js/templates.html:582
@@ -822,7 +822,7 @@ msgstr "邮箱"
 #: seahub/share/templates/share/list_priv_shared_folders.html:15
 #: seahub/share/templates/share/repos.html:15
 #: seahub/share/templates/share/upload_info.html:5
-#: seahub/share/views_pingan.py:165 seahub/templates/js/lib-op-popups.html:6
+#: seahub/share/views_pingan.py:182 seahub/templates/js/lib-op-popups.html:6
 #: seahub/templates/js/templates.html:5 seahub/templates/js/templates.html:186
 #: seahub/templates/js/templates.html:873
 #: seahub/templates/js/templates.html:882
@@ -853,9 +853,10 @@ msgstr "邮箱"
 #: seahub/templates/sysadmin/sys_publink_admin.html:12
 #: seahub/templates/sysadmin/sys_repo_search.html:16
 #: seahub/templates/sysadmin/sys_repo_trash.html:28
-#: seahub/templates/sysadmin/sys_reviseradmin.html:30
-#: seahub/templates/sysadmin/sys_reviseradmin.html:35
-#: seahub/templates/sysadmin/sys_reviseradmin.html:40
+#: seahub/templates/sysadmin/sys_reviseradmin.html:29
+#: seahub/templates/sysadmin/sys_reviseradmin.html:34
+#: seahub/templates/sysadmin/sys_reviseradmin.html:39
+#: seahub/templates/sysadmin/sys_reviseradmin.html:44
 #: seahub/templates/sysadmin/sys_reviseradmin_user_map.html:30
 #: seahub/templates/sysadmin/sys_upload_links_report_search.html:15
 #: seahub/templates/sysadmin/sys_upload_links_report_table.html:5
@@ -867,8 +868,8 @@ msgstr "邮箱"
 #: seahub/templates/wiki/personal_wiki.html:41
 #: seahub/templates/wiki/personal_wiki.html:83
 #: seahub/templates/wiki/personal_wiki_pages.html:28
-#: seahub/views/sysadmin.py:1372 seahub/views/sysadmin_pingan.py:490
-#: seahub/views/sysadmin_pingan.py:601
+#: seahub/views/sysadmin.py:1372 seahub/views/sysadmin_pingan.py:509
+#: seahub/views/sysadmin_pingan.py:670
 msgid "Name"
 msgstr "名称"
 
@@ -923,7 +924,7 @@ msgstr "操作"
 #: seahub/templates/js/templates.html:1395
 #: seahub/templates/js/templates.html:1402
 #: seahub/templates/sysadmin/sys_org_info_user.html:33
-#: seahub/templates/sysadmin/sys_reviseradmin.html:64
+#: seahub/templates/sysadmin/sys_reviseradmin.html:70
 #: seahub/templates/sysadmin/sys_reviseradmin_user_map.html:54
 #: seahub/templates/sysadmin/sys_user_admin_ldap_imported.html:44
 #: seahub/templates/sysadmin/useradmin_table.html:36
@@ -968,7 +969,7 @@ msgstr "编辑"
 #: seahub/templates/sysadmin/sys_org_info_library.html:42
 #: seahub/templates/sysadmin/sys_org_info_user.html:48
 #: seahub/templates/sysadmin/sys_repo_trash.html:40
-#: seahub/templates/sysadmin/sys_reviseradmin.html:65
+#: seahub/templates/sysadmin/sys_reviseradmin.html:71
 #: seahub/templates/sysadmin/sys_reviseradmin_ignore.html:43
 #: seahub/templates/sysadmin/sys_reviseradmin_user_map.html:55
 #: seahub/templates/sysadmin/sys_user_admin_ldap_imported.html:59
@@ -1005,9 +1006,10 @@ msgstr "联系人用来在共享资料库和发送文件外链时的快速补全
 #: seahub/templates/sysadmin/sys_inst_search_user.html:8
 #: seahub/templates/sysadmin/sys_inst_search_user.html:16
 #: seahub/templates/sysadmin/sys_org_info_user.html:16
-#: seahub/templates/sysadmin/sys_reviseradmin.html:32
-#: seahub/templates/sysadmin/sys_reviseradmin.html:37
-#: seahub/templates/sysadmin/sys_reviseradmin.html:42
+#: seahub/templates/sysadmin/sys_reviseradmin.html:31
+#: seahub/templates/sysadmin/sys_reviseradmin.html:36
+#: seahub/templates/sysadmin/sys_reviseradmin.html:41
+#: seahub/templates/sysadmin/sys_reviseradmin.html:46
 #: seahub/templates/sysadmin/sys_reviseradmin_ignore.html:36
 #: seahub/templates/sysadmin/sys_reviseradmin_user_map.html:32
 #: seahub/templates/sysadmin/sys_reviseradmin_user_map.html:41
@@ -1190,7 +1192,7 @@ msgid "Permission error: only group staff can add member"
 msgstr "只有群组管理员可以添加成员。"
 
 #: seahub/group/error_msg.py:16 seahub/group/error_msg.py:22
-#: seahub/share/views.py:279
+#: seahub/share/views.py:277
 msgid "Group does not exist"
 msgstr "群组不存在。"
 
@@ -1428,8 +1430,8 @@ msgstr "名称为必填项。"
 msgid "Description is required."
 msgstr "描述为必填项"
 
-#: seahub/group/views.py:148 seahub/share/views.py:292
-#: seahub/share/views.py:308 seahub/share/views.py:318
+#: seahub/group/views.py:148 seahub/share/views.py:290
+#: seahub/share/views.py:306 seahub/share/views.py:316
 #: seahub/share/views.py:698 seahub/share/views.py:726
 #: seahub/share/views.py:843 seahub/views/__init__.py:531
 #: seahub/views/__init__.py:705 seahub/views/__init__.py:1099
@@ -1916,9 +1918,9 @@ msgstr "名字"
 #: seahub/institutions/templates/institutions/user_info.html:28
 #: seahub/templates/registration/registration_form.html:31
 #: seahub/templates/sysadmin/sys_reviseradmin.html:14
+#: seahub/templates/sysadmin/sys_reviseradmin.html:25
 #: seahub/templates/sysadmin/sys_reviseradmin.html:26
-#: seahub/templates/sysadmin/sys_reviseradmin.html:27
-#: seahub/templates/sysadmin/sys_reviseradmin.html:51
+#: seahub/templates/sysadmin/sys_reviseradmin.html:55
 #: seahub/templates/sysadmin/sys_reviseradmin_ignore.html:14
 #: seahub/templates/sysadmin/sys_reviseradmin_user_map.html:14
 #: seahub/templates/sysadmin/userinfo.html:34
@@ -2056,6 +2058,7 @@ msgstr "此用户没有创建或加入群组"
 #: seahub/templates/sysadmin/useradmin_table.html:6
 #: seahub/templates/sysadmin/useradmin_table.html:10
 #: seahub/views/sysadmin.py:570 seahub/views/sysadmin.py:573
+#: seahub/views/sysadmin_pingan.py:511
 msgid "Status"
 msgstr "状态"
 
@@ -2238,11 +2241,12 @@ msgstr "消息"
 #: seahub/notifications/templates/notifications/notice_email.html:20
 #: seahub/notifications/templates/notifications/user_notification_list.html:24
 #: seahub/share/templates/share/upload_info.html:7
-#: seahub/share/views_pingan.py:168 seahub/share/views_pingan.py:170
+#: seahub/share/views_pingan.py:185 seahub/share/views_pingan.py:187
 #: seahub/templates/file_revisions.html:42
 #: seahub/templates/js/sysadmin-templates.html:202
-#: seahub/templates/repo_history.html:17 seahub/views/sysadmin_pingan.py:493
-#: seahub/views/sysadmin_pingan.py:496 seahub/views/sysadmin_pingan.py:499
+#: seahub/templates/repo_history.html:17 seahub/views/sysadmin_pingan.py:513
+#: seahub/views/sysadmin_pingan.py:516 seahub/views/sysadmin_pingan.py:519
+#: seahub/views/sysadmin_pingan.py:522 seahub/views/sysadmin_pingan.py:525
 msgid "Time"
 msgstr "时间"
 
@@ -2698,7 +2702,7 @@ msgid "Change"
 msgstr "修改"
 
 #: seahub/profile/templates/profile/set_profile.html:35
-#: seahub/share/models.py:273
+#: seahub/share/models.py:274
 msgid "Password:"
 msgstr "密码："
 
@@ -2902,7 +2906,8 @@ msgstr "简体中文"
 msgid "繁體中文"
 msgstr "繁體中文"
 
-#: seahub/share/decorators_for_pingan.py:84
+#: seahub/share/decorators_for_pingan.py:53
+#: seahub/share/decorators_for_pingan.py:81
 msgid "权限不足：你无法访问该文件。"
 msgstr ""
 
@@ -2958,75 +2963,90 @@ msgstr "未找到审核人员。请联系系统管理员。"
 msgid "Link:"
 msgstr "链接："
 
-#: seahub/share/models.py:278 seahub/share/models.py:293
-#: seahub/share/models.py:409
+#: seahub/share/models.py:279 seahub/share/models.py:294
+#: seahub/share/models.py:413
 msgid ""
 "Unsupported password format, please regenerate link if you want to show "
 "password."
 msgstr "无效的密码格式，如果您想显示密码，请重新创建外链。"
 
-#: seahub/share/models.py:557
+#: seahub/share/models.py:566
 msgid "Awaiting DLP verifing"
 msgstr "等待 DLP 审核"
 
-#: seahub/share/models.py:562
+#: seahub/share/models.py:571
 #, python-format
 msgid "DLP passed at %s"
 msgstr "DLP 于 %s 审核通过"
 
-#: seahub/share/models.py:564
+#: seahub/share/models.py:573
 msgid "DLP passed"
 msgstr "DLP 审核通过"
 
-#: seahub/share/models.py:569
+#: seahub/share/models.py:578
 #, python-format
 msgid "DLP veto at %s"
 msgstr "DLP 于 %s 审核否决"
 
-#: seahub/share/models.py:571
+#: seahub/share/models.py:580
 msgid "DLP veto"
 msgstr "DLP 否决"
 
-#: seahub/share/models.py:574
+#: seahub/share/models.py:583
 #, python-format
-msgid "department head (%(name)s %(email)s)"
-msgstr "部门长 (%(name)s %(email)s)"
+msgid "line manager (%(name)s %(email)s)"
+msgstr "直线领导 (%(name)s %(email)s)"
 
-#: seahub/share/models.py:580 seahub/share/models.py:610
+#: seahub/share/models.py:589 seahub/share/models.py:618
+#: seahub/share/models.py:647 seahub/share/models.py:676
 #, python-format
 msgid "Awaiting %s verifing"
 msgstr "等待 %s 审核"
 
-#: seahub/share/models.py:585 seahub/share/models.py:615
+#: seahub/share/models.py:594 seahub/share/models.py:623
+#: seahub/share/models.py:652 seahub/share/models.py:681
 #, python-format
 msgid "%(info)s passed at %(date)s"
 msgstr "%(info)s 于 %(date)s 审核通过"
 
-#: seahub/share/models.py:590 seahub/share/models.py:620
+#: seahub/share/models.py:599 seahub/share/models.py:628
+#: seahub/share/models.py:657 seahub/share/models.py:686
 #, python-format
 msgid "%s passed"
 msgstr "%s 通过审核"
 
-#: seahub/share/models.py:595 seahub/share/models.py:625
+#: seahub/share/models.py:604 seahub/share/models.py:633
+#: seahub/share/models.py:662 seahub/share/models.py:691
 #, python-format
 msgid "%(info)s veto at %(date)s"
 msgstr "%(info)s 于 %(date)s 审核否决"
 
-#: seahub/share/models.py:600 seahub/share/models.py:630
+#: seahub/share/models.py:609 seahub/share/models.py:638
+#: seahub/share/models.py:667 seahub/share/models.py:696
 #, python-format
 msgid "%s veto"
 msgstr "%s 否决"
 
-#: seahub/share/models.py:603
+#: seahub/share/models.py:612
 #, python-format
-msgid "revisers (%(name1)s %(email1)s, %(name2)s %(email2)s)"
-msgstr "稽核 (%(name1)s %(email1)s, %(name2)s %(email2)s)"
+msgid "department head (%(name)s %(email)s)"
+msgstr "二级机构部门长／总部部门长 (%(name)s %(email)s)"
 
-#: seahub/share/share_link_checking.py:86
+#: seahub/share/models.py:641
+#, python-format
+msgid "comanager head (%(name)s %(email)s)"
+msgstr "二级机构分管总／总部分管总 (%(name)s %(email)s)"
+
+#: seahub/share/models.py:670
+#, python-format
+msgid "compliance owner (%(name)s %(email)s)"
+msgstr "二级机构法律合规负责人／总部法律合规部负责人 (%(name)s %(email)s)"
+
+#: seahub/share/share_link_checking.py:91
 msgid "Please verify new share link."
 msgstr "请审核新创建的共享外链。"
 
-#: seahub/share/share_link_checking.py:118
+#: seahub/share/share_link_checking.py:123
 msgid "Verification status of your share link."
 msgstr "您共享外链的审核状态。"
 
@@ -3065,7 +3085,7 @@ msgstr "资料库"
 #: seahub/share/templates/share/links.html:23
 #: seahub/share/templates/share/links.html:70
 #: seahub/share/templates/share/links_verify.html:60
-#: seahub/share/views_pingan.py:174 seahub/templates/js/templates.html:1224
+#: seahub/share/views_pingan.py:191 seahub/templates/js/templates.html:1224
 #: seahub/templates/js/templates.html:1241
 #: seahub/templates/sysadmin/userinfo.html:166
 msgid "Visits"
@@ -3073,9 +3093,9 @@ msgstr "访问次数"
 
 #: seahub/share/templates/share/links.html:24
 #: seahub/share/templates/share/links_verify.html:58
-#: seahub/share/views_pingan.py:172
-#: seahub/templates/sysadmin/sys_download_links_report_table.html:11
-#: seahub/views/sysadmin_pingan.py:502
+#: seahub/share/views_pingan.py:189
+#: seahub/templates/sysadmin/sys_download_links_report_table.html:12
+#: seahub/views/sysadmin_pingan.py:529
 msgid "Expiration"
 msgstr "过期时间"
 
@@ -3096,9 +3116,7 @@ msgstr "提醒"
 
 #: seahub/share/templates/share/links.html:48
 #: seahub/share/templates/share/links.html:87
-#: seahub/share/templates/share/links_verify.html:75
 #: seahub/templates/file_revisions.html:77
-#: seahub/templates/sysadmin/sys_download_links_report_table.html:41
 #: seahub/templates/sysadmin/sys_upload_links_report_table.html:16
 msgid "View"
 msgstr "查看"
@@ -3147,8 +3165,8 @@ msgstr "成功发送邮件到："
 #: seahub/views/sysadmin.py:336 seahub/views/sysadmin.py:364
 #: seahub/views/sysadmin.py:1540 seahub/views/sysadmin.py:1597
 #: seahub/views/sysadmin.py:2260 seahub/views/sysadmin.py:2302
-#: seahub/views/sysadmin.py:2469 seahub/views/sysadmin_pingan.py:294
-#: seahub/views/sysadmin_pingan.py:310 seahub/views/sysadmin_pingan.py:326
+#: seahub/views/sysadmin.py:2469 seahub/views/sysadmin_pingan.py:313
+#: seahub/views/sysadmin_pingan.py:329 seahub/views/sysadmin_pingan.py:345
 msgid "Success"
 msgstr "成功"
 
@@ -3172,16 +3190,16 @@ msgstr "导出到 Excel"
 
 #: seahub/share/templates/share/links_verify.html:26
 #: seahub/share/templates/share/links_verify.html:55
-#: seahub/share/views_pingan.py:166
+#: seahub/share/views_pingan.py:183
 #: seahub/templates/sysadmin/sys_download_links_report_table.html:7
 #: seahub/templates/sysadmin/sys_upload_links_report_table.html:6
-#: seahub/views/sysadmin_pingan.py:491 seahub/views/sysadmin_pingan.py:602
+#: seahub/views/sysadmin_pingan.py:510 seahub/views/sysadmin_pingan.py:671
 msgid "From"
 msgstr "来源"
 
 #: seahub/share/templates/share/links_verify.html:28
 #: seahub/share/templates/share/links_verify.html:57
-#: seahub/share/views_pingan.py:171
+#: seahub/share/views_pingan.py:188
 msgid "Create Time"
 msgstr "生成时间"
 
@@ -3190,11 +3208,11 @@ msgid "You don't have any file links need verify"
 msgstr "你还没有需要审核的文件外链"
 
 #: seahub/share/templates/share/links_verify.html:59
-#: seahub/share/views_pingan.py:173 seahub/views/sysadmin_pingan.py:500
+#: seahub/share/views_pingan.py:190 seahub/views/sysadmin_pingan.py:527
 msgid "First Download Time"
 msgstr "首次下载时间"
 
-#: seahub/share/templates/share/links_verify.html:81
+#: seahub/share/templates/share/links_verify.html:79
 msgid "You don't have any file links verified"
 msgstr "你还没有审核完成的文件外链"
 
@@ -3312,30 +3330,30 @@ msgstr ""
 "审批人请先登录 %(service_url)s ，再点击此链接审批，否则无权限访问。<br />（请"
 "使用chrome/firefox浏览器）"
 
-#: seahub/share/templates/share/share_link_verify_result_email.html:13
+#: seahub/share/templates/share/share_link_verify_result_email.html:12
 #, python-format
 msgid "Your shared link for file %(file_name)s passed by %(source)s."
 msgstr "您的文件 %(file_name)s 已通过 %(source)s 审核。"
 
-#: seahub/share/templates/share/share_link_verify_result_email.html:15
+#: seahub/share/templates/share/share_link_verify_result_email.html:14
 #, python-format
 msgid "Your shared link for file %(file_name)s rejected by %(source)s."
 msgstr "您的文件 %(file_name)s 未通过 %(source)s 审核。"
 
-#: seahub/share/templates/share/share_link_verify_result_email.html:17
+#: seahub/share/templates/share/share_link_verify_result_email.html:16
 #, python-format
 msgid ""
 "Your shared link for file %(file_name)s is waiting for %(source)s to verify."
 msgstr "您的文件 %(file_name)s 正等待 %(source)s 审核。"
 
-#: seahub/share/templates/share/share_link_verify_result_email.html:22
+#: seahub/share/templates/share/share_link_verify_result_email.html:21
 #, python-format
 msgid ""
 "For details, please refer to <a href=\"%(service_url)s/share/links/\">"
 "%(service_url)s/share/links/</a>."
 msgstr ""
-"请访问 <a href=\"%(service_url)s/share/links/\">%(service_url)s/share/links/</"
-"a> 了解详情。"
+"请访问 <a href=\"%(service_url)s/share/links/\">%(service_url)s/share/links/"
+"</a> 了解详情。"
 
 #: seahub/share/templates/share/upload_info.html:8
 #: seahub/templates/file_access.html:27
@@ -3354,21 +3372,21 @@ msgstr "没有上传的文件"
 msgid "Your verify code is %(code)s, this code will be valid for one hour."
 msgstr "您的验证码是 %(code)s，一小时内有效。"
 
-#: seahub/share/views.py:91
+#: seahub/share/views.py:89
 msgid "Failed to share to all members, please try again later."
 msgstr "共享到公共资料失败，请稍后再试"
 
-#: seahub/share/views.py:93
+#: seahub/share/views.py:91
 #, python-format
 msgid ""
 "Shared to all members successfully, go check it at <a href=\"%s\">Shares</a>."
 msgstr "共享到公共资料成功，请前往 <a href=\"%s\">共享</a> 查看。"
 
-#: seahub/share/views.py:190 seahub/share/views.py:1334
+#: seahub/share/views.py:188 seahub/share/views.py:1334
 msgid "Only the owner of the library has permission to share it."
 msgstr "只有资料库拥有者才有共享权限。"
 
-#: seahub/share/views.py:249 seahub/share/views.py:343
+#: seahub/share/views.py:247 seahub/share/views.py:341
 #: seahub/share/views.py:606 seahub/views/__init__.py:696
 #: seahub/views/__init__.py:737 seahub/views/__init__.py:1028
 #: seahub/views/__init__.py:1240 seahub/views/ajax.py:1656
@@ -3379,33 +3397,33 @@ msgstr "只有资料库拥有者才有共享权限。"
 msgid "Library does not exist"
 msgstr "资料库不存在"
 
-#: seahub/share/views.py:258 seahub/share/views.py:273
-#: seahub/share/views.py:321
+#: seahub/share/views.py:256 seahub/share/views.py:271
+#: seahub/share/views.py:319
 msgid "Invalid argument"
 msgstr "无效参数"
 
-#: seahub/share/views.py:338 seahub/share/views.py:358
+#: seahub/share/views.py:336 seahub/share/views.py:356
 #: seahub/views/__init__.py:903
 msgid "Argument is not valid"
 msgstr "参数无效"
 
-#: seahub/share/views.py:361 seahub/share/views.py:382
+#: seahub/share/views.py:359 seahub/share/views.py:380
 msgid "Failed to remove share"
 msgstr "取消共享失败"
 
-#: seahub/share/views.py:374
+#: seahub/share/views.py:372
 msgid "group id is not valid"
 msgstr "无效的group id"
 
-#: seahub/share/views.py:378
+#: seahub/share/views.py:376
 msgid "Failed to unshare: the group doesn't exist."
 msgstr "取消共享失败，该群组不存在"
 
-#: seahub/share/views.py:392
+#: seahub/share/views.py:390
 msgid "Successfully removed share"
 msgstr "取消共享成功"
 
-#: seahub/share/views.py:459
+#: seahub/share/views.py:457
 msgid "all members"
 msgstr "所有成员"
 
@@ -3468,7 +3486,7 @@ msgstr "请检查您输入的邮箱"
 msgid "Email address is not valid"
 msgstr "邮箱地址不合法"
 
-#: seahub/share/views.py:1398 seahub/share/views_pingan.py:293
+#: seahub/share/views.py:1398 seahub/share/views_pingan.py:328
 msgid "Share link is not found"
 msgstr "共享链接不存在"
 
@@ -3480,61 +3498,64 @@ msgstr "查看共享链接的验证码"
 msgid "Failed to send a verification code, please try again later."
 msgstr "发送验证码失败，请稍后再试。"
 
-#: seahub/share/views_pingan.py:119 seahub/views/sysadmin_pingan.py:529
-#: seahub/views/sysadmin_pingan.py:543 seahub/views/sysadmin_pingan.py:560
+#: seahub/share/views_pingan.py:136 seahub/views/sysadmin_pingan.py:556
+#: seahub/views/sysadmin_pingan.py:570 seahub/views/sysadmin_pingan.py:587
+#: seahub/views/sysadmin_pingan.py:604 seahub/views/sysadmin_pingan.py:621
 msgid "verifing"
 msgstr "正在审核"
 
-#: seahub/share/views_pingan.py:121 seahub/views/sysadmin_pingan.py:531
-#: seahub/views/sysadmin_pingan.py:545 seahub/views/sysadmin_pingan.py:562
+#: seahub/share/views_pingan.py:138 seahub/views/sysadmin_pingan.py:558
+#: seahub/views/sysadmin_pingan.py:572 seahub/views/sysadmin_pingan.py:589
+#: seahub/views/sysadmin_pingan.py:606 seahub/views/sysadmin_pingan.py:623
 msgid "pass"
 msgstr "审核通过"
 
-#: seahub/share/views_pingan.py:123 seahub/views/sysadmin_pingan.py:533
-#: seahub/views/sysadmin_pingan.py:547 seahub/views/sysadmin_pingan.py:564
+#: seahub/share/views_pingan.py:140 seahub/views/sysadmin_pingan.py:560
+#: seahub/views/sysadmin_pingan.py:574 seahub/views/sysadmin_pingan.py:591
+#: seahub/views/sysadmin_pingan.py:608 seahub/views/sysadmin_pingan.py:625
 msgid "veto"
 msgstr "否决"
 
-#: seahub/share/views_pingan.py:167
+#: seahub/share/views_pingan.py:184
 msgid "Pass/Veto"
 msgstr "通过／否决"
 
-#: seahub/share/views_pingan.py:169
+#: seahub/share/views_pingan.py:186
 msgid "DLP"
 msgstr "DLP"
 
-#: seahub/share/views_pingan.py:175 seahub/templates/file_edit.html:314
-#: seahub/templates/file_edit.html:331 seahub/views/sysadmin_pingan.py:503
-#: seahub/views/sysadmin_pingan.py:603
+#: seahub/share/views_pingan.py:192 seahub/templates/file_edit.html:314
+#: seahub/templates/file_edit.html:331 seahub/views/sysadmin_pingan.py:530
+#: seahub/views/sysadmin_pingan.py:672
 msgid "Link"
 msgstr "链接"
 
-#: seahub/share/views_pingan.py:186
+#: seahub/share/views_pingan.py:203
 msgid "Pass"
 msgstr "通过"
 
-#: seahub/share/views_pingan.py:188 seahub/templates/shared_file_view.html:42
+#: seahub/share/views_pingan.py:205 seahub/templates/shared_file_view.html:42
 msgid "Veto"
 msgstr "否决"
 
-#: seahub/share/views_pingan.py:217
+#: seahub/share/views_pingan.py:234
 msgid "verified links"
 msgstr "已审核的外链"
 
-#: seahub/share/views_pingan.py:224 seahub/views/sysadmin_pingan.py:657
+#: seahub/share/views_pingan.py:241 seahub/views/sysadmin_pingan.py:726
 msgid "Failed to export excel"
 msgstr "导出 Excel 失败"
 
-#: seahub/share/views_pingan.py:298
+#: seahub/share/views_pingan.py:333
 msgid "This email is not in the shared list"
 msgstr "该邮箱未在共享列表里"
 
-#: seahub/share/views_pingan.py:312
+#: seahub/share/views_pingan.py:347
 #, python-format
 msgid "Verify code for link: %s"
 msgstr "链接：%s 验证码"
 
-#: seahub/share/views_pingan.py:325
+#: seahub/share/views_pingan.py:360
 msgid "Failed to send verify code, please try again later."
 msgstr "发送验证码失败，请稍后再试。"
 
@@ -5837,11 +5858,16 @@ msgid "Search Download Links"
 msgstr "搜索下载链接"
 
 #: seahub/templates/sysadmin/sys_download_links_report_table.html:9
+#: seahub/views/sysadmin_pingan.py:526
+msgid "Created at"
+msgstr "创建时间"
+
+#: seahub/templates/sysadmin/sys_download_links_report_table.html:10
 msgid "First Download"
 msgstr "首次下载"
 
-#: seahub/templates/sysadmin/sys_download_links_report_table.html:10
-#: seahub/views/sysadmin_pingan.py:501
+#: seahub/templates/sysadmin/sys_download_links_report_table.html:11
+#: seahub/views/sysadmin_pingan.py:528
 msgid "Downloads"
 msgstr "下载次数"
 
@@ -6128,45 +6154,68 @@ msgstr "忽略列表"
 msgid "Add reviser"
 msgstr "添加审核人"
 
-#: seahub/templates/sysadmin/sys_reviseradmin.html:29
-#: seahub/templates/sysadmin/sys_reviseradmin.html:52
-msgid "Department Head"
-msgstr "部门长"
+#: seahub/templates/sysadmin/sys_reviseradmin.html:28
+#: seahub/templates/sysadmin/sys_reviseradmin.html:56
+msgid "Line Manager"
+msgstr "直线领导"
 
-#: seahub/templates/sysadmin/sys_reviseradmin.html:31
-#: seahub/templates/sysadmin/sys_reviseradmin.html:36
-#: seahub/templates/sysadmin/sys_reviseradmin.html:41
+#: seahub/templates/sysadmin/sys_reviseradmin.html:30
+#: seahub/templates/sysadmin/sys_reviseradmin.html:35
+#: seahub/templates/sysadmin/sys_reviseradmin.html:40
+#: seahub/templates/sysadmin/sys_reviseradmin.html:45
 #: seahub/templates/sysadmin/sys_reviseradmin_user_map.html:31
 msgid "Account"
 msgstr "帐号"
 
-#: seahub/templates/sysadmin/sys_reviseradmin.html:34
-#: seahub/templates/sysadmin/sys_reviseradmin.html:53
-msgid "Reviser 1"
-msgstr "稽核1"
+#: seahub/templates/sysadmin/sys_reviseradmin.html:33
+#: seahub/templates/sysadmin/sys_reviseradmin.html:57
+msgid "Department Head"
+msgstr "部门长"
 
-#: seahub/templates/sysadmin/sys_reviseradmin.html:39
-#: seahub/templates/sysadmin/sys_reviseradmin.html:54
-msgid "Reviser 2"
-msgstr "稽核2"
+#: seahub/templates/sysadmin/sys_reviseradmin.html:38
+#: seahub/templates/sysadmin/sys_reviseradmin.html:58
+msgid "Comanager Head"
+msgstr "分管总"
 
-#: seahub/templates/sysadmin/sys_reviseradmin.html:74
+#: seahub/templates/sysadmin/sys_reviseradmin.html:43
+#: seahub/templates/sysadmin/sys_reviseradmin.html:59
+msgid "Compliance Owner"
+msgstr "法律合规部负责人"
+
+#: seahub/templates/sysadmin/sys_reviseradmin.html:80
 #: seahub/templates/sysadmin/sys_reviseradmin_user_map.html:64
 msgid "No reviser has been added yet"
 msgstr "还未添加审核人员"
 
-#: seahub/templates/sysadmin/sys_reviseradmin.html:107
+#: seahub/templates/sysadmin/sys_reviseradmin.html:118
 msgid "Department cannot be blank"
 msgstr "部门不能为空"
 
-#: seahub/templates/sysadmin/sys_reviseradmin.html:112
-msgid "Department head email cannot be blank"
-msgstr "部门长邮箱不能为空"
+#: seahub/templates/sysadmin/sys_reviseradmin.html:124
+#| msgid "Reviser email cannot be blank"
+msgid "Line manager email cannot be blank"
+msgstr "直线领导邮箱不能为空"
 
-#: seahub/templates/sysadmin/sys_reviseradmin.html:117
+#: seahub/templates/sysadmin/sys_reviseradmin.html:129
+#: seahub/templates/sysadmin/sys_reviseradmin.html:140
+#: seahub/templates/sysadmin/sys_reviseradmin.html:151
+#: seahub/templates/sysadmin/sys_reviseradmin.html:162
 #: seahub/templates/sysadmin/sys_reviseradmin_user_map.html:99
 msgid "Invalid email"
 msgstr "非法邮箱格式"
+
+#: seahub/templates/sysadmin/sys_reviseradmin.html:135
+msgid "Department head email cannot be blank"
+msgstr "部门长邮箱不能为空"
+
+#: seahub/templates/sysadmin/sys_reviseradmin.html:146
+#| msgid "Department head email cannot be blank"
+msgid "Comanager head email cannot be blank"
+msgstr "分管总邮箱不能为空"
+
+#: seahub/templates/sysadmin/sys_reviseradmin.html:157
+msgid "Compliance owner email cannot be blank"
+msgstr "法律合规部负责人邮箱不能为空"
 
 #: seahub/templates/sysadmin/sys_reviseradmin_ignore.html:27
 #: seahub/templates/sysadmin/sys_reviseradmin_user_map.html:27
@@ -6797,8 +6846,8 @@ msgstr "错误的repo id"
 
 #: seahub/views/ajax.py:1443 seahub/views/ajax.py:2312
 #: seahub/views/sysadmin.py:321 seahub/views/sysadmin.py:339
-#: seahub/views/sysadmin.py:362 seahub/views/sysadmin_pingan.py:297
-#: seahub/views/sysadmin_pingan.py:313 seahub/views/sysadmin_pingan.py:329
+#: seahub/views/sysadmin.py:362 seahub/views/sysadmin_pingan.py:316
+#: seahub/views/sysadmin_pingan.py:332 seahub/views/sysadmin_pingan.py:348
 msgid "Failed"
 msgstr "失败"
 
@@ -7193,73 +7242,118 @@ msgstr "无效设置"
 msgid "Invalid value"
 msgstr "无效数值"
 
-#: seahub/views/sysadmin_pingan.py:165
+#: seahub/views/sysadmin_pingan.py:161
 msgid "Invalid department"
 msgstr "无效的部门"
 
-#: seahub/views/sysadmin_pingan.py:170
+#: seahub/views/sysadmin_pingan.py:168
+#| msgid "Invalid email"
+msgid "Invalid line manager email"
+msgstr "无效的直线领导邮箱"
+
+#: seahub/views/sysadmin_pingan.py:175
 msgid "Invalid department head email"
 msgstr "无效的部门长邮箱"
 
-#: seahub/views/sysadmin_pingan.py:277
+#: seahub/views/sysadmin_pingan.py:182
+#| msgid "Invalid department head email"
+msgid "Invalid comanager head email"
+msgstr "无效的分管总邮箱"
+
+#: seahub/views/sysadmin_pingan.py:189
+#| msgid "Invalid department head email"
+msgid "Invalid compliance owner email"
+msgstr "无效的法律合规负责人邮箱"
+
+#: seahub/views/sysadmin_pingan.py:296
 msgid "This user has already been added"
 msgstr "该用户已经添加"
 
-#: seahub/views/sysadmin_pingan.py:341
+#: seahub/views/sysadmin_pingan.py:360
 msgid "Invalid Argument"
 msgstr "无效参数"
 
-#: seahub/views/sysadmin_pingan.py:492
+#: seahub/views/sysadmin_pingan.py:512
 msgid "DLP Status"
 msgstr "DLP 状态"
 
-#: seahub/views/sysadmin_pingan.py:494
+#: seahub/views/sysadmin_pingan.py:514
+msgid "Line Manager Email"
+msgstr "直线领导邮箱"
+
+#: seahub/views/sysadmin_pingan.py:515
+#| msgid "Reviser Status"
+msgid "Line Manager Status"
+msgstr "直线领导状态"
+
+#: seahub/views/sysadmin_pingan.py:517
 msgid "Department Head Email"
 msgstr "部门长邮箱"
 
-#: seahub/views/sysadmin_pingan.py:495
+#: seahub/views/sysadmin_pingan.py:518
 msgid "Department Head Status"
 msgstr "部门长状态"
 
-#: seahub/views/sysadmin_pingan.py:497
-msgid "Reviser Email"
-msgstr "审核人员邮箱"
+#: seahub/views/sysadmin_pingan.py:520
+msgid "Comanager Head Email"
+msgstr "分管总邮箱"
 
-#: seahub/views/sysadmin_pingan.py:498
-msgid "Reviser Status"
-msgstr "审核人员状态"
+#: seahub/views/sysadmin_pingan.py:521
+#| msgid "Department Head Status"
+msgid "Comanager Head Status"
+msgstr "分管总状态"
 
-#: seahub/views/sysadmin_pingan.py:592
+#: seahub/views/sysadmin_pingan.py:523
+msgid "Compliance Owner Email"
+msgstr "法律合规部负责人邮箱"
+
+#: seahub/views/sysadmin_pingan.py:524
+msgid "Compliance Owner Status"
+msgstr "法律合规部负责人状态"
+
+#: seahub/views/sysadmin_pingan.py:661
 msgid "download links"
 msgstr "下载链接"
 
-#: seahub/views/sysadmin_pingan.py:604
+#: seahub/views/sysadmin_pingan.py:673
 msgid "Upload File Name"
 msgstr "上传文件名"
 
-#: seahub/views/sysadmin_pingan.py:605
+#: seahub/views/sysadmin_pingan.py:674
 msgid "Upload File Size"
 msgstr "上传文件大小"
 
-#: seahub/views/sysadmin_pingan.py:606
+#: seahub/views/sysadmin_pingan.py:675
 msgid "Upload Time"
 msgstr "上传时间"
 
-#: seahub/views/sysadmin_pingan.py:607
+#: seahub/views/sysadmin_pingan.py:676
 msgid "Upload IP"
 msgstr "上传IP"
 
-#: seahub/views/sysadmin_pingan.py:644
+#: seahub/views/sysadmin_pingan.py:713
 msgid "upload links"
 msgstr "上传链接"
 
-#: seahub/views/sysadmin_pingan.py:649
+#: seahub/views/sysadmin_pingan.py:718
 msgid "Failed to export excel, invalid argument."
 msgstr "导出失败， 参数无效"
 
 #: seahub/views/wiki.py:139
 msgid "You do not have permission to create wiki"
 msgstr "你没有权限创建维基。"
+
+#~ msgid "revisers (%(name1)s %(email1)s, %(name2)s %(email2)s)"
+#~ msgstr "稽核 (%(name1)s %(email1)s, %(name2)s %(email2)s)"
+
+#~ msgid "Reviser 1"
+#~ msgstr "稽核1"
+
+#~ msgid "Reviser 2"
+#~ msgstr "稽核2"
+
+#~ msgid "Reviser Email"
+#~ msgstr "审核人员邮箱"
 
 #~ msgid "Source"
 #~ msgstr "来源"

@@ -1,23 +1,23 @@
-from seahub.share.models import FileShareReviserInfo
+from seahub.share.models import FileShareReviserChain
 from seahub.test_utils import BaseTestCase
 
 
-class FileShareReviserInfoTest:
+class FileShareReviserChainTest:
     pass
 
-class FileShareReviserInfoManagerTest(BaseTestCase):
+class FileShareReviserChainManagerTest(BaseTestCase):
     def test_can_add(self):
-        assert len(FileShareReviserInfo.objects.all()) == 0
-        info = FileShareReviserInfo.objects.add_file_share_reviser(
+        assert len(FileShareReviserChain.objects.all()) == 0
+        info = FileShareReviserChain.objects.add_file_share_reviser(
             'dept_A',
+            # line manager
+            self.user.username, self.user.username, self.user.username,
             # department head
             self.user.username, self.user.username, self.user.username,
             # co-manager
             self.admin.username, self.admin.username, self.admin.username,
-            # reviser 1
-            self.admin.username, self.admin.username, self.admin.username,
-            # reviser 2
+            # compliance owner
             self.admin.username, self.admin.username, self.admin.username,
         )
-        assert len(FileShareReviserInfo.objects.all()) == 1
+        assert len(FileShareReviserChain.objects.all()) == 1
         assert info.department_name == 'dept_A'

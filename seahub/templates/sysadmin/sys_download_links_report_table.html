@@ -3,13 +3,13 @@
 <table>
     <tr>
         <th width="4%"><!--icon--></th>
-        <th width="22%">{% trans "Name"%}</th>
-        <th width="20%">{% trans "From"%}</th>
-        <th width="12%">{% trans "Status"%}</th>
-        <th width="13%">{% trans "First Download"%}</th>
+        <th width="17%">{% trans "Name"%}</th>
+        <th width="17%">{% trans "From"%}</th>
+        <th width="10%">{% trans "Status"%}</th>
+        <th width="15%">{% trans "Created at"%}</th>
+        <th width="12%">{% trans "First Download"%}</th>
         <th width="10%">{% trans "Downloads"%}</th>
         <th width="15%">{% trans "Expiration"%}</th>
-        <th width="4%"><!--icon--></th>
     </tr>
     {% for link in download_links %}
     <tr>
@@ -25,6 +25,9 @@
             {% endif %}
             {% endwith %}
         </td>
+
+        <td>{{link.ctime|date:'Y-m-d H:i:s'}}</td>
+
         {% if link.first_dl_time %}
         <td>{{link.first_dl_time|date:'Y-m-d H:i:s'}}</td>
         {% else %}
@@ -38,7 +41,6 @@
         {% endif %}
 
         <td {% if link.is_expired %}class='error'{% endif %}>{{ link.expire_date|date:'Y-m-d H:i:s' }}</td>
-        <td><img src="{{ MEDIA_URL }}img/link.png" alt="" class="view-link op-icon vh" data-link="{{ link.shared_link }}" title="{% trans "View"%}" /></td>
     </tr>
 {% endfor %}
 </table>

@@ -15,7 +15,23 @@ class FileShareTest(BaseTestCase):
 
         assert fs.need_remind() is True
 
+        fs_v.line_manager_status = 1
         fs_v.department_head_status = 1
-        fs_v.reviser_status = 1
+        fs_v.comanager_head_status = 1
+        fs_v.compliance_owner_status = 1
         fs_v.save()
         assert fs.need_remind() is False
+
+        fs_v.line_manager_status = 2
+        fs_v.department_head_status = 0
+        fs_v.comanager_head_status = 0
+        fs_v.compliance_owner_status = 0
+        fs_v.save()
+        assert fs.need_remind() is False
+
+        fs_v.line_manager_status = 1
+        fs_v.department_head_status = 0
+        fs_v.comanager_head_status = 0
+        fs_v.compliance_owner_status = 0
+        fs_v.save()
+        assert fs.need_remind() is True

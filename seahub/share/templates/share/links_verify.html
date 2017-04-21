@@ -56,9 +56,8 @@
                 <th width="18%">{% trans "Status"%}</th>
                 <th width="14%">{% trans "Create Time"%}</th>
                 <th width="12%">{% trans "Expiration"%}</th>
-                <th width="12%">{% trans "First Download Time"%}</th>
+                <th width="16%">{% trans "First Download Time"%}</th>
                 <th width="8%">{% trans "Visits"%}</th>
-                <th width="4%"><!--icon--></th>
             </tr>
             {% for link in verified_links %}
             <tr>
@@ -72,7 +71,6 @@
                 <td {% if link.is_expired %}class='error'{% endif %}>{{ link.expire_date|date:'Y-m-d' }}</td>
                 <td>{{ link.first_dl_time|date:'Y-m-d' }}</td>
                 <td>{{ link.view_cnt }}</td>
-                <td><img src="{{ MEDIA_URL }}img/link.png" alt="" class="view-link op-icon vh" data-link="{{ link.shared_link }}" title="{% trans "View"%}" /></td>
             </tr>
         {% endfor %}
         </table>

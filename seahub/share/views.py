@@ -40,9 +40,7 @@ from seahub.settings import SITE_ROOT, REPLACE_FROM_EMAIL, ADD_REPLY_TO_HEADER
 from seahub.profile.models import Profile
 
 ######################### Start PingAn Group related ########################
-from seahub.share.models import (FileShare, FileShareReviserInfo,
-                                 FileShareVerify, FileShareDownloads,
-                                 FileShareReceiver)
+from seahub.share.models import FileShareReceiver
 from seahub.share.settings import ENABLE_FILESHARE_CHECK
 from seahub.settings import SHARE_ACCESS_EXPIRATION
 ######################### End PingAn Group related ##########################
@@ -514,6 +512,8 @@ def list_shared_links(request):
                 continue
             fs.filename = os.path.basename(fs.path)
             fs.shared_link = gen_file_share_link(fs.token)
+            fs.verbose_status_str_with_password = fs.get_verbose_status_str(
+                show_password=True)
         else:
             if seafile_api.get_dir_id_by_path(r.id, fs.path) is None:
                 fs.delete()

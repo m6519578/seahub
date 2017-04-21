@@ -35,7 +35,7 @@
                 {% endif %}
                 <td><a href="{% url 'view_common_lib_dir' fs.repo.id '' %}">{{ fs.repo.name }}</a></td>
                 <td>
-                    <a href="#" class="stats" data-str="{{ fs.get_verbose_status_str }}">{{ fs.get_short_status_str }}</a>
+                    <a href="#" class="stats" data-str="{{ fs.verbose_status_str_with_password }}">{{ fs.get_short_status_str }}</a>
                     {% if fs.need_remind %}<button class="js-remind" data-token="{{fs.token}}">{% trans "remind" %}</button>{% endif %}
                 </td>
                 <td>{{ fs.view_cnt }}</td>

@@ -64,8 +64,10 @@ class AJAXGetDownloadLinkTest(BaseTestCase):
 
         fs_v = FileShareVerify.objects.all()[0]
         fs_v.DLP_status = 1
+        fs_v.line_manager_status = 1
         fs_v.department_head_status = 1
-        fs_v.reviser_status = 1
+        fs_v.comanager_head_status = 1
+        fs_v.compliance_owner_status = 1
         fs_v.save()
 
         resp = self.client.get(self.url + '?repo_id=' + self.user_repo_id +

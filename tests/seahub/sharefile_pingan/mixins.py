@@ -1,22 +1,22 @@
 from django.core.urlresolvers import reverse
 
 from seahub.share.models import (FileShare, FileShareVerify,
-                                 FileShareReviserInfo, FileShareReviserMap)
+                                 FileShareReviserChain, FileShareReviserMap)
 from seahub.profile.models import Profile, DetailedProfile
 
 
 class SetupRevisersMixin(object):
     def setup_revisers(self):
         department = 'dept_A'
-        FileShareReviserInfo.objects.add_file_share_reviser(
+        FileShareReviserChain.objects.add_file_share_reviser(
             department,
+            # line manager
+            self.user.username, self.user.username, self.user.username,
             # department head
             self.user.username, self.user.username, self.user.username,
-            # co-manager
-            '', '', '',
-            # reviser 1
+            # comanager head
             self.admin.username, self.admin.username, self.admin.username,
-            # reviser 2
+            # compliance owner
             self.admin.username, self.admin.username, self.admin.username,
         )
 

@@ -255,7 +255,7 @@ class FileShare(models.Model):
             return None
         return FileShareVerify.objects.get_verbose_status(self)
 
-    def get_verbose_status_str(self):
+    def get_verbose_status_str(self, show_password=False):
         rst = []
         v_stats = self.get_verbose_status()
         if v_stats is None:
@@ -269,13 +269,14 @@ class FileShare(models.Model):
         if self.pass_verify():
             status_str += '<br><br>'
             status_str += _('Link:') + ' ' + self.get_full_url()
-            status_str += '<br>'
-            status_str += _('Password:') + ' '
-            decoded_pwd = self.get_decoded_password(self.password)
-            if decoded_pwd:
-                status_str += '%s' % decoded_pwd
-            else:
-                status_str += _('Unsupported password format, please regenerate link if you want to show password.')
+            if show_password is True:
+                status_str += '<br>'
+                status_str += _('Password:') + ' '
+                decoded_pwd = self.get_decoded_password(self.password)
+                if decoded_pwd:
+                    status_str += '%s' % decoded_pwd
+                else:
+                    status_str += _('Unsupported password format, please regenerate link if you want to show password.')
 
         return status_str
 
@@ -296,16 +297,22 @@ class FileShare(models.Model):
         """Return `True` if department head or revisers are verifying and need
         to be remind.
         """
-        fsv_all = self.fileshareverify_set.all()
-        if len(fsv_all) > 0:
-            fs_v = fsv_all[0]
-            if fs_v.department_head_status == 0 or fs_v.reviser_status == 0:
-                return True
-            else:
-                return False
-        else:
-            return False
+        fs_verify = FileShareVerify.objects.get(share_link=self)
 
+        ret = True
+        if fs_verify.line_manager_pass() and \
+           fs_verify.department_head_pass() and \
+           fs_verify.comanager_head_pass() and \
+           fs_verify.compliance_owner_pass():
+            ret = False
+
+        if (not fs_verify.dlp_pass()) or fs_verify.line_manager_veto() or \
+           fs_verify.department_head_veto() or \
+           fs_verify.comanager_head_veto() or \
+           fs_verify.compliance_owner_veto():
+            ret = False
+
+        return ret
     #################### END PingAn Group related ######################
 
 
@@ -522,14 +529,16 @@ class FileShareVerifyManager(models.Manager):
         except FileShareVerify.DoesNotExist:
             return STATUS_VERIFING
 
-        if fs_verify.DLP_status == STATUS_PASS and \
-           fs_verify.department_head_status == STATUS_PASS and \
-           fs_verify.reviser_status == STATUS_PASS:
+        if fs_verify.dlp_pass() and fs_verify.line_manager_pass() and \
+           fs_verify.department_head_pass() and \
+           fs_verify.comanager_head_pass() and \
+           fs_verify.compliance_owner_pass():
             return STATUS_PASS
 
-        if fs_verify.DLP_status == STATUS_VETO or \
-           fs_verify.department_head_status == STATUS_VETO or \
-           fs_verify.reviser_status == STATUS_VETO:
+        if fs_verify.dlp_veto() or fs_verify.line_manager_veto() or \
+           fs_verify.department_head_veto() or \
+           fs_verify.comanager_head_veto() or \
+           fs_verify.compliance_owner_veto():
             return STATUS_VETO
 
         return STATUS_VERIFING
@@ -538,8 +547,11 @@ class FileShareVerifyManager(models.Manager):
         """Return verbose status of share link.
 
         e.g.
-        [(0, 'Awating DLP verifing'), (0, 'Awaiting department head verifing'),
-        [0, 'Awaiting reviser verifing]]
+        [(0, 'Awating DLP verifing'),
+        (0, 'Awaiting line manager verifing'),
+        (0, 'Awaiting department head verifing'),
+        (0, 'Awaiting comanager head verifing'),
+        [0, 'Awaiting compliance owner verifing]]
         """
 
         try:
@@ -570,7 +582,36 @@ class FileShareVerifyManager(models.Manager):
             else:
                 dlp_msg = _('DLP veto')
 
-        # genetate department head status
+        # generate line manager status
+        line_manager_info = _('line manager (%(name)s %(email)s)') % {
+            'name': reviser_info.line_manager_name,
+            'email': reviser_info.line_manager_email
+        }
+
+        if fs_verify.line_manager_status == STATUS_VERIFING:
+            line_manager_msg = _('Awaiting %s verifing') % line_manager_info
+
+        elif fs_verify.line_manager_status == STATUS_PASS:
+
+            if fs_verify.line_manager_vtime:
+                line_manager_msg = _('%(info)s passed at %(date)s') % {
+                    'info': line_manager_info,
+                    'date': fs_verify.line_manager_vtime.strftime('%Y-%m-%d')
+                }
+            else:
+                line_manager_msg = _('%s passed') % line_manager_info
+
+        elif fs_verify.line_manager_status == STATUS_VETO:
+
+            if fs_verify.line_manager_vtime:
+                line_manager_msg = _('%(info)s veto at %(date)s') % {
+                    'info': line_manager_info,
+                    'date': fs_verify.line_manager_vtime.strftime('%Y-%m-%d')
+                }
+            else:
+                line_manager_msg = _('%s veto') % line_manager_info
+
+        # generate department head status
         department_head_info = _('department head (%(name)s %(email)s)') % {
             'name': reviser_info.department_head_name,
             'email': reviser_info.department_head_email
@@ -599,63 +640,95 @@ class FileShareVerifyManager(models.Manager):
             else:
                 dept_head_msg = _('%s veto') % department_head_info
 
-        # genetate reviser status
-        revisers_info = _('revisers (%(name1)s %(email1)s, %(name2)s %(email2)s)') % {
-            'name1': reviser_info.reviser1_name,
-            'email1': reviser_info.reviser1_email,
-            'name2': reviser_info.reviser2_name,
-            'email2': reviser_info.reviser2_email
+        # generate comanager head status
+        comanager_head_info = _('comanager head (%(name)s %(email)s)') % {
+            'name': reviser_info.comanager_head_name,
+            'email': reviser_info.comanager_head_email
         }
-        if fs_verify.reviser_status == STATUS_VERIFING:
-            reviser_msg = _('Awaiting %s verifing') % revisers_info
 
-        elif fs_verify.reviser_status == STATUS_PASS:
+        if fs_verify.comanager_head_status == STATUS_VERIFING:
+            comanager_head_msg = _('Awaiting %s verifing') % comanager_head_info
 
-            if fs_verify.reviser_vtime:
-                reviser_msg = _('%(info)s passed at %(date)s') % {
-                    'info': revisers_info,
-                    'date': fs_verify.reviser_vtime.strftime('%Y-%m-%d'),
+        elif fs_verify.comanager_head_status == STATUS_PASS:
+
+            if fs_verify.comanager_head_vtime:
+                comanager_head_msg = _('%(info)s passed at %(date)s') % {
+                    'info': comanager_head_info,
+                    'date': fs_verify.comanager_head_vtime.strftime('%Y-%m-%d')
                 }
             else:
-                reviser_msg = _('%s passed') % revisers_info
+                comanager_head_msg = _('%s passed') % comanager_head_info
 
-        elif fs_verify.reviser_status == STATUS_VETO:
+        elif fs_verify.comanager_head_status == STATUS_VETO:
 
-            if fs_verify.reviser_vtime:
-                reviser_msg = _('%(info)s veto at %(date)s') % {
-                    'info': revisers_info,
-                    'date': fs_verify.reviser_vtime.strftime('%Y-%m-%d'),
+            if fs_verify.comanager_head_vtime:
+                comanager_head_msg = _('%(info)s veto at %(date)s') % {
+                    'info': comanager_head_info,
+                    'date': fs_verify.comanager_head_vtime.strftime('%Y-%m-%d')
                 }
             else:
-                reviser_msg = _('%s veto') % revisers_info
+                comanager_head_msg = _('%s veto') % comanager_head_info
+
+        # generate compliance owner status
+        compliance_owner_info = _('compliance owner (%(name)s %(email)s)') % {
+            'name': reviser_info.compliance_owner_name,
+            'email': reviser_info.compliance_owner_email
+        }
+
+        if fs_verify.compliance_owner_status == STATUS_VERIFING:
+            compliance_owner_msg = _('Awaiting %s verifing') % compliance_owner_info
+
+        elif fs_verify.compliance_owner_status == STATUS_PASS:
+
+            if fs_verify.compliance_owner_vtime:
+                compliance_owner_msg = _('%(info)s passed at %(date)s') % {
+                    'info': compliance_owner_info,
+                    'date': fs_verify.compliance_owner_vtime.strftime('%Y-%m-%d')
+                }
+            else:
+                compliance_owner_msg = _('%s passed') % compliance_owner_info
+
+        elif fs_verify.compliance_owner_status == STATUS_VETO:
+
+            if fs_verify.compliance_owner_vtime:
+                compliance_owner_msg = _('%(info)s veto at %(date)s') % {
+                    'info': compliance_owner_info,
+                    'date': fs_verify.compliance_owner_vtime.strftime('%Y-%m-%d')
+                }
+            else:
+                compliance_owner_msg = _('%s veto') % compliance_owner_info
 
         return [(fs_verify.DLP_status, dlp_msg),
+                (fs_verify.line_manager_status, line_manager_msg),
                 (fs_verify.department_head_status, dept_head_msg),
-                (fs_verify.reviser_status, reviser_msg)]
+                (fs_verify.comanager_head_status, comanager_head_msg),
+                (fs_verify.compliance_owner_status, compliance_owner_msg)]
 
     def set_status(self, share_link, status, username):
         """Set status depending the type of user.
         """
         m = self.get(share_link=share_link)
 
-        from seahub.share.share_link_checking import get_reviser_emails_by_user
-        revisers = get_reviser_emails_by_user(share_link.username)
-        if not revisers:
+        from seahub.share.share_link_checking import get_reviser_info_by_user
+        reviser_info = get_reviser_info_by_user(share_link.username)
+        if reviser_info is None:
             return m
 
-        if username == revisers[0]:
+        if username == reviser_info.line_manager_email:
+            m.line_manager_status = status
+            m.line_manager_vtime = datetime.datetime.now()
+
+        if username == reviser_info.department_head_email:
             m.department_head_status = status
             m.department_head_vtime = datetime.datetime.now()
 
-        if username == revisers[1]:
+        if username == reviser_info.comanager_head_email:
             m.comanager_head_status = status
             m.comanager_head_vtime = datetime.datetime.now()
 
-        if username == revisers[2] or username == revisers[3]:
-            if m.reviser_status == STATUS_VERIFING:
-                # Only set reviser status when it's not reviewed
-                m.reviser_status = status
-                m.reviser_vtime = datetime.datetime.now()
+        if username == reviser_info.compliance_owner_email:
+            m.compliance_owner_status = status
+            m.compliance_owner_vtime = datetime.datetime.now()
 
         m.save()
         return m
@@ -671,35 +744,56 @@ class FileShareVerify(models.Model):
     DLP_status = models.IntegerField(choices=STATUS_CHOICES,
                                      default=STATUS_VERIFING)
     DLP_vtime = models.DateTimeField(blank=True, null=True)
+
+    line_manager_status = models.IntegerField(choices=STATUS_CHOICES,
+                                              default=STATUS_VERIFING)
+    line_manager_vtime = models.DateTimeField(blank=True, null=True)
     department_head_status = models.IntegerField(choices=STATUS_CHOICES,
                                                  default=STATUS_VERIFING)
     department_head_vtime = models.DateTimeField(blank=True, null=True)
     comanager_head_status = models.IntegerField(choices=STATUS_CHOICES,
-                                                default=STATUS_VERIFING) # not used yet
+                                                default=STATUS_VERIFING)
     comanager_head_vtime = models.DateTimeField(blank=True, null=True)
-    reviser_status = models.IntegerField(choices=STATUS_CHOICES,
-                                         default=STATUS_VERIFING)
-    reviser_vtime = models.DateTimeField(blank=True, null=True)
+    compliance_owner_status = models.IntegerField(choices=STATUS_CHOICES,
+                                                  default=STATUS_VERIFING)
+    compliance_owner_vtime = models.DateTimeField(blank=True, null=True)
 
     objects = FileShareVerifyManager()
 
+    def dlp_pass(self):
+        return True if self.DLP_status == STATUS_PASS else False
+    def dlp_veto(self):
+        return True if self.DLP_status == STATUS_VETO else False
+    def dlp_verifying(self):
+        return True if self.DLP_status == STATUS_VERIFING else False
+
+    def line_manager_pass(self):
+        return True if self.line_manager_status == STATUS_PASS else False
+    def line_manager_veto(self):
+        return True if self.line_manager_status == STATUS_VETO else False
+    def line_manager_verifying(self):
+        return True if self.line_manager_status == STATUS_VERIFING else False
+
     def department_head_pass(self):
         return True if self.department_head_status == STATUS_PASS else False
-
     def department_head_veto(self):
         return True if self.department_head_status == STATUS_VETO else False
+    def department_head_verifying(self):
+        return True if self.department_head_status == STATUS_VERIFING else False
 
     def comanager_head_pass(self):
         return True if self.comanager_head_status == STATUS_PASS else False
-
     def comanager_head_veto(self):
         return True if self.comanager_head_status == STATUS_VETO else False
+    def comanager_head_verifying(self):
+        return True if self.comanager_head_status == STATUS_VERIFING else False
 
-    def revisers_pass(self):
-        return True if self.reviser_status == STATUS_PASS else False
-
-    def revisers_veto(self):
-        return True if self.reviser_status == STATUS_VETO else False
+    def compliance_owner_pass(self):
+        return True if self.compliance_owner_status == STATUS_PASS else False
+    def compliance_owner_veto(self):
+        return True if self.compliance_owner_status == STATUS_VETO else False
+    def compliance_owner_verifying(self):
+        return True if self.compliance_owner_status == STATUS_VERIFING else False
 
 
 class FileShareReviserInfoManager(models.Manager):
@@ -748,6 +842,64 @@ class FileShareReviserInfo(models.Model):
 
     def __unicode__(self):
         return '%s <--> %s %s %s' % (self.department_name, self.department_head_email, self.reviser1_email, self.reviser2_email)
+
+
+class FileShareReviserChainManager(models.Manager):
+    def add_file_share_reviser(self, department_name,
+            line_manager_name, line_manager_account, line_manager_email,
+            department_head_name, department_head_account, department_head_email,
+            comanager_head_name, comanager_head_account, comanager_head_email,
+            compliance_owner_name, compliance_owner_account, compliance_owner_email):
+
+        reviser = self.model(department_name=department_name,
+
+                             line_manager_name=line_manager_name,
+                             line_manager_account=line_manager_account,
+                             line_manager_email=line_manager_email,
+
+                             department_head_name=department_head_name,
+                             department_head_account=department_head_account,
+                             department_head_email=department_head_email,
+
+                             comanager_head_name=comanager_head_name,
+                             comanager_head_account=comanager_head_account,
+                             comanager_head_email=comanager_head_email,
+
+                             compliance_owner_name=compliance_owner_name,
+                             compliance_owner_account=compliance_owner_account,
+                             compliance_owner_email=compliance_owner_email)
+
+        reviser.save(using=self._db)
+
+        return reviser
+
+
+class FileShareReviserChain(models.Model):
+    department_name = models.CharField(max_length=200, db_index=True)
+
+    line_manager_name = models.CharField(max_length=1024)
+    line_manager_account = models.CharField(max_length=1024)
+    line_manager_email = models.EmailField()
+
+    department_head_name = models.CharField(max_length=1024)
+    department_head_account = models.CharField(max_length=1024)
+    department_head_email = models.EmailField()
+
+    comanager_head_name = models.CharField(max_length=1024)
+    comanager_head_account = models.CharField(max_length=1024)
+    comanager_head_email = models.EmailField()
+
+    compliance_owner_name = models.CharField(max_length=1024)
+    compliance_owner_account = models.CharField(max_length=1024)
+    compliance_owner_email = models.EmailField()
+
+    objects = FileShareReviserChainManager()
+
+    def __unicode__(self):
+        return 'id: %s, department name: %s <--> %s %s %s %s' % (
+            self.pk, self.department_name, self.line_manager_email,
+            self.department_head_email, self.comanager_head_email,
+            self.compliance_owner_email)
 
 
 class FileShareReviserMap(models.Model):

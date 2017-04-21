@@ -9,15 +9,14 @@ from django.utils.translation import ugettext as _
 
 from seahub.auth import REDIRECT_FIELD_NAME
 from seahub.share.models import (FileShare, set_share_link_access,
-                                 check_share_link_access, FileShareVerify,
-                                 FileShareReviserInfo)
+                                 check_share_link_access, FileShareVerify)
 from seahub.share.forms import SharedLinkPasswordForm, CaptchaSharedLinkPasswordForm
 from seahub.share.utils import (incr_share_link_decrypt_failed_attempts,
                                 clear_share_link_decrypt_failed_attempts,
                                 show_captcha_share_link_password_form,
                                 enable_share_link_verify_code,
                                 get_unusable_verify_code)
-from seahub.share.share_link_checking import get_reviser_emails_by_user
+from seahub.share.share_link_checking import get_reviser_info_by_user
 from seahub.utils import render_error
 from seahub.utils.ip import get_remote_ip
 
@@ -49,39 +48,47 @@ def share_link_approval_for_pingan(func):
             tup = settings.LOGIN_URL, REDIRECT_FIELD_NAME, path
             return HttpResponseRedirect('%s?%s=%s' % tup)
         else:
-            revisers = get_reviser_emails_by_user(fileshare.username)
+            info = get_reviser_info_by_user(fileshare.username)
+            if info is None:
+                return render_error(request, _(u'权限不足：你无法访问该文件。'))
+
             req_user = request.user.username
-            if req_user in revisers:
-                fs_v = FileShareVerify.objects.get(share_link=fileshare)
-                if req_user == revisers[0]:
-                    if fs_v.department_head_pass():
-                        user_pass = True
-                    if fs_v.department_head_veto():
-                        user_veto = True
+            fs_v = FileShareVerify.objects.get(share_link=fileshare)
+            if req_user == info.line_manager_email:
+                if fs_v.line_manager_pass():
+                    user_pass = True
+                if fs_v.line_manager_veto():
+                    user_veto = True
 
-                elif req_user == revisers[1]:
-                    if fs_v.comanager_head_pass():
-                        user_pass = True
-                    if fs_v.comanager_head_veto():
-                        user_veto = True
+            elif req_user == info.department_head_email:
+                if fs_v.department_head_pass():
+                    user_pass = True
+                if fs_v.department_head_veto():
+                    user_veto = True
 
-                elif req_user == revisers[2] or req_user == revisers[3]:
-                    if fs_v.revisers_pass():
-                        user_pass = True
-                    if fs_v.revisers_veto():
-                        user_veto = True
+            elif req_user == info.comanager_head_email:
+                if fs_v.comanager_head_pass():
+                    user_pass = True
+                if fs_v.comanager_head_veto():
+                    user_veto = True
 
-                skip_encrypted = True
-                need_verify = True
-                kwargs.update({
-                    'skip_encrypted': skip_encrypted,
-                    'need_verify': need_verify,
-                    'user_pass': user_pass,
-                    'user_veto': user_veto,
-                })
-                return func(request, fileshare, *args, **kwargs)
+            elif req_user == info.compliance_owner_email:
+                if fs_v.compliance_owner_pass():
+                    user_pass = True
+                if fs_v.compliance_owner_veto():
+                    user_veto = True
             else:
                 return render_error(request, _(u'权限不足：你无法访问该文件。'))
+
+            skip_encrypted = True
+            need_verify = True
+            kwargs.update({
+                'skip_encrypted': skip_encrypted,
+                'need_verify': need_verify,
+                'user_pass': user_pass,
+                'user_veto': user_veto,
+            })
+            return func(request, fileshare, *args, **kwargs)
 
     return _decorated
 

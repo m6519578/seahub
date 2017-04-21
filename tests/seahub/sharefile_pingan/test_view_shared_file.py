@@ -43,8 +43,8 @@ class ViewSharedFileTest(BaseTestCase, SetupRevisersMixin, AddDownloadLinkMixin)
 
         self.logout()
 
-    def test_reviser_1(self):
-        """Reviser 1 can view this encrypt shared link without provide
+    def test_comanager_head(self):
+        """Comanager head can view this encrypt shared link without provide
         password.
         """
         self.login_as(self.admin)
@@ -64,8 +64,10 @@ class ViewSharedFileTest(BaseTestCase, SetupRevisersMixin, AddDownloadLinkMixin)
         """
         fs_v = FileShareVerify.objects.get(share_link=self.fs)
         fs_v.DLP_status = 1
+        fs_v.line_manager_status = 1
         fs_v.department_head_status = 1
-        fs_v.reviser_status = 1
+        fs_v.comanager_head_status = 1
+        fs_v.compliance_owner_status = 1
         fs_v.save()
 
         resp = self.client.get(self.url)
@@ -94,8 +96,10 @@ class ViewSharedFileTest(BaseTestCase, SetupRevisersMixin, AddDownloadLinkMixin)
         # verify a shared link
         fs_v = FileShareVerify.objects.get(share_link=self.fs)
         fs_v.DLP_status = 1
+        fs_v.line_manager_status = 1
         fs_v.department_head_status = 1
-        fs_v.reviser_status = 1
+        fs_v.comanager_head_status = 1
+        fs_v.compliance_owner_status = 1
         fs_v.save()
 
         # enter password

@@ -880,13 +880,13 @@ def user_info(request, email):
             g.role = _('Member')
 
 ######################### Start PingAn Group related ########################
-    from seahub.share.models import (FileShareVerifyIgnore, FileShareReviserMap, FileShareReviserInfo)
+    from seahub.share.models import (FileShareVerifyIgnore, FileShareReviserMap, FileShareReviserChain)
     approving_chain_info = None
 
     # department relationship third priority
     d_profile = DetailedProfile.objects.get_detailed_profile_by_user(email)
     if d_profile:
-        for row in FileShareReviserInfo.objects.all():
+        for row in FileShareReviserChain.objects.all():  # TODO: performance issue?
             if row.department_name in d_profile.department:
                 if not row.department_head_email:
                     continue

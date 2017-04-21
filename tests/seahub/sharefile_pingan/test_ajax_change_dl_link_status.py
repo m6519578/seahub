@@ -43,5 +43,14 @@ class AJAXChangeDLLinkStatusTest(BaseTestCase, SetupRevisersMixin, AddDownloadLi
         self.assertEqual(200, resp.status_code)
         assert FileShare.objects.all()[0].is_verifing() is True  # still waiting for DLP
 
-        assert 'pass' in mail.outbox[0].body  # approved by user
-        assert '/share/links/' in mail.outbox[0].body
+        assert len(mail.outbox) == 2
+
+        # notify next reviser
+        assert mail.outbox[0].to[0] == self.admin.username
+        assert 'please verify by clicking' in mail.outbox[0].body
+
+        # notify share link owner
+        assert mail.outbox[1].to[0] == self.user.username
+
+        assert 'pass' in mail.outbox[1].body  # approved by user
+        assert '/share/links/' in mail.outbox[1].body
