@@ -166,29 +166,34 @@ def get_reviser_info_by_user(username):
         logger.error('No detailed profile(department, ... etc) found for user %s' % username)
         return None
 
-    for row in FileShareReviserChain.objects.all():  # TODO: performance issue?
-        if row.department_name in d_profile.department:  # TODO: use startswith ?
-            if not row.line_manager_email or \
-               not row.department_head_email or \
-               not row.comanager_head_email or \
-               not row.compliance_owner_email:
-                logger.error('Email is empty in chain: %s' % row)
+    res = FileShareReviserChain.objects.filter(department_name=d_profile.department)
+    if len(res) == 0:
+        logger.error('No reviser info found for user: %s' % username)
+        return None
+    elif len(res) > 1:
+        logger.error('Duplicated reviser info found for department: %s' % d_profile.department)
+        row = res[0]
+    else:
+        row = res[0]
 
-            ret = r_info(
-                line_manager_name=row.line_manager_name,
-                line_manager_account=row.line_manager_account,
-                line_manager_email=row.line_manager_email,
-                department_head_name=row.department_head_name,
-                department_head_account=row.department_head_account,
-                department_head_email=row.department_head_email,
-                comanager_head_name=row.comanager_head_name,
-                comanager_head_account=row.comanager_head_account,
-                comanager_head_email=row.comanager_head_email,
-                compliance_owner_name=row.compliance_owner_name,
-                compliance_owner_account=row.compliance_owner_account,
-                compliance_owner_email=row.compliance_owner_email)
+    if not row.line_manager_email or \
+       not row.department_head_email or \
+       not row.comanager_head_email or \
+       not row.compliance_owner_email:
+        logger.error('Email is empty in chain: %s' % row)
 
-            return ret
+    ret = r_info(
+        line_manager_name=row.line_manager_name,
+        line_manager_account=row.line_manager_account,
+        line_manager_email=row.line_manager_email,
+        department_head_name=row.department_head_name,
+        department_head_account=row.department_head_account,
+        department_head_email=row.department_head_email,
+        comanager_head_name=row.comanager_head_name,
+        comanager_head_account=row.comanager_head_account,
+        comanager_head_email=row.comanager_head_email,
+        compliance_owner_name=row.compliance_owner_name,
+        compliance_owner_account=row.compliance_owner_account,
+        compliance_owner_email=row.compliance_owner_email)
 
-    logger.error('No reviser info found for user: %s' % username)
-    return None
+    return ret

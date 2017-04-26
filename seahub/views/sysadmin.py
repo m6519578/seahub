@@ -886,11 +886,10 @@ def user_info(request, email):
     # department relationship third priority
     d_profile = DetailedProfile.objects.get_detailed_profile_by_user(email)
     if d_profile:
-        for row in FileShareReviserChain.objects.all():  # TODO: performance issue?
-            if row.department_name in d_profile.department:
-                if not row.department_head_email:
-                    continue
-                approving_chain_info = _('Department approving chain: %s.') % row
+        res = FileShareReviserChain.objects.filter(department_name=d_profile.department)
+        if len(res) > 0:
+            row = res[0]
+            approving_chain_info = _('Department approving chain: %s.') % row
 
     # user map second priority
     r_map = FileShareReviserMap.objects.filter(username=email)

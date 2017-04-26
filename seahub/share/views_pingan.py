@@ -54,7 +54,7 @@ def list_share_links_by_reviser(username):
     if dept_list:
         # get all user list belong to those departments
         for dept in dept_list:
-            for e in DetailedProfile.objects.filter(department__startswith=dept):
+            for e in DetailedProfile.objects.filter(department=dept):
                 users.append(e.user)
 
     users = list(set(users))
