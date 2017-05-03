@@ -80,18 +80,13 @@ def get_verify_link_by_user(username):
             logger.error(e)
             continue
 
-        if not fs.is_verifing():
-            verified_links.append(fs)
-            continue            # continue to next shared link
-
-        user_pass = False
-        user_veto = False
-
         info = get_reviser_info_by_user(fs.username)
         if info is None:
             logger.error('No reviser info found for user: %s' % fs.username)
             continue
 
+        user_pass = False
+        user_veto = False
         if username == info.line_manager_email:
             if fs_verify.line_manager_pass():
                 user_pass = True
@@ -144,9 +139,34 @@ def get_verify_link_by_user(username):
 
             fs.first_dl_time = FileShareDownloads.objects.get_first_download_time(fs)
 
-            verified_links.append(fs)
+            if username == info.line_manager_email:
+                if fs_verify.line_manager_pass() or fs_verify.line_manager_veto():
+                    verified_links.append(fs)
+            elif username == info.department_head_email:
+                if fs_verify.department_head_pass() or fs_verify.department_head_veto():
+                    verified_links.append(fs)
+            elif username == info.comanager_head_email:
+                if fs_verify.comanager_head_pass() or fs_verify.comanager_head_veto():
+                    verified_links.append(fs)
+            elif username == info.compliance_owner_email:
+                if fs_verify.compliance_owner_pass() or fs_verify.compliance_owner_veto():
+                    verified_links.append(fs)
         else:
-            verifing_links.append(fs)
+            if username == info.line_manager_email:
+                if fs_verify.dlp_pass():
+                    verifing_links.append(fs)
+            elif username == info.department_head_email:
+                if fs_verify.dlp_pass() and fs_verify.line_manager_pass():
+                    verifing_links.append(fs)
+            elif username == info.comanager_head_email:
+                if fs_verify.dlp_pass() and fs_verify.line_manager_pass() \
+                   and fs_verify.department_head_pass():
+                    verifing_links.append(fs)
+            elif username == info.compliance_owner_email:
+                if fs_verify.dlp_pass() and fs_verify.line_manager_pass() \
+                   and fs_verify.department_head_pass() \
+                   and fs_verify.comanager_head_pass():
+                    verifing_links.append(fs)
 
     return verifing_links, verified_links
 
