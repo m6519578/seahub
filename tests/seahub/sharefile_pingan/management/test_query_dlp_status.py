@@ -31,10 +31,11 @@ class CommandTest(BaseTestCase, SetupRevisersMixin, AddDownloadLinkMixin):
         mock_query_dlp_status.return_value = 1
 
         call_command('query_dlp_status')
-        assert len(mail.outbox) > 0
+        assert len(mail.outbox) == 2
         assert 'Please verify new share link.' == mail.outbox[0].subject
-        assert 'Verification status of your share link.' == mail.outbox[-1].subject
-        assert 'passed by DLP' in mail.outbox[-1].body
+        assert 'class="dlp-msg"' not in mail.outbox[0].body
+        assert 'Verification status of your share link.' == mail.outbox[1].subject
+        assert 'passed by DLP' in mail.outbox[1].body
 
     @patch.object(Command, 'query_dlp_status')
     def test_dlp_rejected(self, mock_query_dlp_status):
@@ -43,6 +44,8 @@ class CommandTest(BaseTestCase, SetupRevisersMixin, AddDownloadLinkMixin):
 
         call_command('query_dlp_status')
 
-        assert len(mail.outbox) == 1
-        assert 'Verification status of your share link.' == mail.outbox[0].subject
-        assert 'rejected by DLP' in mail.outbox[0].body
+        assert len(mail.outbox) == 2
+        assert 'Please verify new share link.' == mail.outbox[0].subject
+        assert 'class="dlp-msg"' in mail.outbox[0].body
+        assert 'Verification status of your share link.' == mail.outbox[1].subject
+        assert 'rejected by DLP' in mail.outbox[1].body

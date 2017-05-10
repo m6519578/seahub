@@ -95,8 +95,9 @@ class Command(BaseCommand):
                     logger.error('Failed to remove %s' % symbol_link)
                     logger.error(exc)
 
-                if status == 1 and e[1].share_link.is_verifing():
-                    # Send emails to revisers for huamn check
+                if e[1].share_link.is_verifing():
+                    # Send emails to revisers for huamn check no matter DLP
+                    # pass or veto.
                     self.email_revisers(e[1].share_link)
 
                 # save file to later review
@@ -127,13 +128,15 @@ class Command(BaseCommand):
                                  os.path.basename(fileshare.path)
         )
 
-        res = seafile_api.copy_file(fileshare.repo_id,
-                                    os.path.dirname(fileshare.path),
-                                    os.path.basename(fileshare.path),
-                                    SHARE_LINK_BACKUP_LIBRARY, '/',
-                                    new_file, '', need_progress=0)
-        print 'Backup to %s successfuly, name is %s.' % (SHARE_LINK_BACKUP_LIBRARY, new_file)
-        logger.info('Backup to %s successfuly, name is %s.' % (SHARE_LINK_BACKUP_LIBRARY, new_file))
+        try:
+            seafile_api.copy_file(
+                fileshare.repo_id, os.path.dirname(fileshare.path),
+                os.path.basename(fileshare.path), SHARE_LINK_BACKUP_LIBRARY, '/',
+                new_file, '', need_progress=0)
+            print 'Backup to %s successfuly, name is %s.' % (SHARE_LINK_BACKUP_LIBRARY, new_file)
+            logger.info('Backup to %s successfuly, name is %s.' % (SHARE_LINK_BACKUP_LIBRARY, new_file))
+        except Exception as e:
+            logger.error('Failed to backup, %s' % e)
 
     def email_revisers(self, fileshare):
         info = get_reviser_info_by_user(fileshare.username)

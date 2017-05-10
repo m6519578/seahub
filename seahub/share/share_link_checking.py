@@ -87,13 +87,21 @@ def is_file_link_reviser(username):
 
 def email_reviser(fileshare, reviser_email):
     """Send email to revisers to verify shared link.
+    If DLP veto, show veto message to revisers.
     """
     subject = _('Please verify new share link.')
+    try:
+        fs_verify = FileShareVerify.objects.get(share_link=fileshare)
+        show_dlp_veto_msg = fs_verify.dlp_veto()
+    except FileShareVerify.DoesNotExist:
+        show_dlp_veto_msg = False
+
     c = {
         'email': fileshare.username,
         'file_name': fileshare.get_name(),
         'file_shared_link': fileshare.get_full_url(),
         'service_url': get_service_url(),
+        'show_dlp_veto_msg': show_dlp_veto_msg,
     }
     try:
         send_html_email(subject, 'share/share_link_verify_email.html',

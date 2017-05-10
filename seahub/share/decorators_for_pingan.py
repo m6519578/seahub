@@ -87,6 +87,7 @@ def share_link_approval_for_pingan(func):
                 'need_verify': need_verify,
                 'user_pass': user_pass,
                 'user_veto': user_veto,
+                'show_dlp_veto_msg': fs_v.dlp_veto(),
             })
             return func(request, fileshare, *args, **kwargs)
 

@@ -57,7 +57,7 @@ class ListFileShareVerifyTest(BaseTestCase, SetupRevisersMixin, AddDownloadLinkM
         self.login_as(self.user)
         resp = self.client.get(self.url)
         self.assertEqual(200, resp.status_code)
-        assert len(resp.context['verifing_links']) == 0
+        assert len(resp.context['verifing_links']) == 1
 
         self.logout()
 

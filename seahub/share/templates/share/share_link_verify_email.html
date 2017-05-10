@@ -12,6 +12,10 @@
 <a href="{{ file_shared_link }}">{{ file_shared_link }}</a>
 </p>
 
+{% if show_dlp_veto_msg %}
+<p class="dlp-msg" style="font-size:14px;color:red;">注意：DLP扫描提示关键字扫描风险。</p>
+{% endif %}
+
 <p style="font-size:14px;color:#434144;">
 {% blocktrans %}Before clicking the link, you need to log onto {{service_url}} first, otherwise, you would got permission error.<br />(Please use Chrome/Firefox){% endblocktrans%}
 </p>

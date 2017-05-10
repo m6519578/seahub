@@ -306,7 +306,7 @@ class FileShare(models.Model):
            fs_verify.compliance_owner_pass():
             ret = False
 
-        if (not fs_verify.dlp_pass()) or fs_verify.line_manager_veto() or \
+        if fs_verify.dlp_verifying() or fs_verify.line_manager_veto() or \
            fs_verify.department_head_veto() or \
            fs_verify.comanager_head_veto() or \
            fs_verify.compliance_owner_veto():
@@ -529,13 +529,13 @@ class FileShareVerifyManager(models.Manager):
         except FileShareVerify.DoesNotExist:
             return STATUS_VERIFING
 
-        if fs_verify.dlp_pass() and fs_verify.line_manager_pass() and \
+        if fs_verify.line_manager_pass() and \
            fs_verify.department_head_pass() and \
            fs_verify.comanager_head_pass() and \
            fs_verify.compliance_owner_pass():
             return STATUS_PASS
 
-        if fs_verify.dlp_veto() or fs_verify.line_manager_veto() or \
+        if fs_verify.line_manager_veto() or \
            fs_verify.department_head_veto() or \
            fs_verify.comanager_head_veto() or \
            fs_verify.compliance_owner_veto():

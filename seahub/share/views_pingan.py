@@ -153,17 +153,17 @@ def get_verify_link_by_user(username):
                     verified_links.append(fs)
         else:
             if username == info.line_manager_email:
-                if fs_verify.dlp_pass():
+                if not fs_verify.dlp_verifying():
                     verifing_links.append(fs)
             elif username == info.department_head_email:
-                if fs_verify.dlp_pass() and fs_verify.line_manager_pass():
+                if fs_verify.line_manager_pass():
                     verifing_links.append(fs)
             elif username == info.comanager_head_email:
-                if fs_verify.dlp_pass() and fs_verify.line_manager_pass() \
+                if fs_verify.line_manager_pass() \
                    and fs_verify.department_head_pass():
                     verifing_links.append(fs)
             elif username == info.compliance_owner_email:
-                if fs_verify.dlp_pass() and fs_verify.line_manager_pass() \
+                if fs_verify.line_manager_pass() \
                    and fs_verify.department_head_pass() \
                    and fs_verify.comanager_head_pass():
                     verifing_links.append(fs)
