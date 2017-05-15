@@ -45,6 +45,8 @@ class AddDownloadLinkMixin(object):
             'use_passwd': '1',
             'passwd': '12345678',
             'expire_days': 3,
+            'sent_to': 'a@a.com',
+            'note': 'xxx',
         }
         url = reverse('ajax_get_download_link')
         self.client.post(url, data, HTTP_X_REQUESTED_WITH='XMLHttpRequest')

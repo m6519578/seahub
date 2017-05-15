@@ -943,6 +943,17 @@ class FileShareReceiver(models.Model):
     objects = FileShareReceiverManager()
 
 
+class FileShareExtraInfo(models.Model):
+    """Exrta infos for revisers to review.
+    """
+    share_link = models.ForeignKey(FileShare)
+    sent_to = models.CharField(max_length=255)
+    note = models.TextField()
+
+    class Meta:
+        unique_together = ("share_link", "sent_to")
+
+
 class FileShareDownloadsManager(models.Manager):
     def add(self, share_link, username):
         """Record download info.
@@ -994,6 +1005,7 @@ class UploadLinkShareUploads(models.Model):
 ########## Handle signals to remove file share
 from django.dispatch import receiver
 from seahub.signals import file_deleted, file_edited
+from seahub.share.signals import file_shared_link_created
 
 @receiver([file_deleted, file_edited])
 def file_updated_cb(sender, **kwargs):
@@ -1012,4 +1024,16 @@ def file_updated_cb(sender, **kwargs):
     FileShare.objects.filter(username=username).filter(
         repo_id=repo_id).filter(path=path).delete()
 
+########## Handle signals to add extra info when shared link created.
+@receiver(file_shared_link_created)
+def fs_created_cb(sender, **kwargs):
+    sent_emails = kwargs['sent_to']
+    note = kwargs['note']
+
+    for e in sent_emails:
+        e = e.strip()
+        if not e:
+            continue
+        FileShareExtraInfo.objects.create(share_link=sender, sent_to=e,
+                                          note=note)
 ######################## End PingAn Group related ##########################

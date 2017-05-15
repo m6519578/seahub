@@ -263,6 +263,23 @@ define([
                 post_data["expire_days"] = expire_days;
             }
 ///////////////////////// Start PingAn Group related ////////////////////////
+
+                var sent_to = $.trim($('[name="sent_to"]', form).val());
+                if (!sent_to) {
+                    Common.showFormError(form_id, gettext("Please enter the recipient's email."));
+                    return false;
+                }
+                
+                var note = $.trim($('[name="note"]', form).val());
+                if (!note) {
+                    Common.showFormError(form_id, gettext("Please enter note."));
+                    return false;
+                }
+                
+                $.extend(post_data, {
+                    'sent_to': sent_to,
+                    'note': note
+                });
             }
 ///////////////////////// End PingAn Group related //////////////////////////
 

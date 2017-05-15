@@ -42,6 +42,7 @@ from seahub.profile.models import Profile
 ######################### Start PingAn Group related ########################
 from seahub.share.models import FileShareReceiver
 from seahub.share.settings import ENABLE_FILESHARE_CHECK
+from seahub.share.signals import file_shared_link_created
 from seahub.settings import SHARE_ACCESS_EXPIRATION
 ######################### End PingAn Group related ##########################
 
@@ -1184,6 +1185,20 @@ def ajax_get_download_link(request):
             return HttpResponse(data, status=400, content_type=content_type)
         else:
             expire_date = timezone.now() + relativedelta(days=expire_days)
+
+        sent_to = request.POST.get('sent_to', '')
+        sent_emails = sent_to.split(',')
+        if len(sent_emails) == 0:
+            err = _("Please enter the recipient's email.")
+            data = json.dumps({'error': err})
+            return HttpResponse(data, status=400, content_type=content_type)
+
+        note = request.POST.get('note', '')
+
+        if not note:
+            err = _('Please enter note.')
+            data = json.dumps({'error': err})
+            return HttpResponse(data, status=400, content_type=content_type)
 ######################### End PingAn Group related ##########################
 
         # resource check
@@ -1230,6 +1245,9 @@ def ajax_get_download_link(request):
 
 ######################### Start PingAn Group related ########################
                 if ENABLE_FILESHARE_CHECK:
+                    file_shared_link_created.send(
+                        sender=fs, sent_to=sent_emails, note=note)
+
                     from .share_link_checking import check_share_link
                     check_share_link(request, fs, repo)
 

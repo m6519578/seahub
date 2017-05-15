@@ -9,7 +9,8 @@ from django.utils.translation import ugettext as _
 
 from seahub.auth import REDIRECT_FIELD_NAME
 from seahub.share.models import (FileShare, set_share_link_access,
-                                 check_share_link_access, FileShareVerify)
+                                 check_share_link_access, FileShareVerify,
+                                 FileShareExtraInfo)
 from seahub.share.forms import SharedLinkPasswordForm, CaptchaSharedLinkPasswordForm
 from seahub.share.utils import (incr_share_link_decrypt_failed_attempts,
                                 clear_share_link_decrypt_failed_attempts,
@@ -82,11 +83,20 @@ def share_link_approval_for_pingan(func):
 
             skip_encrypted = True
             need_verify = True
+            extra_info = FileShareExtraInfo.objects.filter(share_link=fileshare)
+            if len(extra_info) == 0:
+                share_to = ''
+                note = ''
+            else:
+                share_to = ', '.join([e.sent_to for e in extra_info])
+                note = extra_info[0].note
             kwargs.update({
                 'skip_encrypted': skip_encrypted,
                 'need_verify': need_verify,
                 'user_pass': user_pass,
                 'user_veto': user_veto,
+                'share_to': share_to,
+                'note': note,
                 'show_dlp_veto_msg': fs_v.dlp_veto(),
             })
             return func(request, fileshare, *args, **kwargs)

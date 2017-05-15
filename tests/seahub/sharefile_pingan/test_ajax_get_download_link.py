@@ -2,7 +2,7 @@ import json
 
 from django.core.urlresolvers import reverse
 
-from seahub.share.models import FileShare, FileShareVerify
+from seahub.share.models import FileShare, FileShareVerify, FileShareExtraInfo
 from seahub.test_utils import BaseTestCase
 
 
@@ -24,6 +24,7 @@ class AJAXGetDownloadLinkTest(BaseTestCase):
         """
         assert len(FileShare.objects.all()) == 0
         assert len(FileShareVerify.objects.all()) == 0
+        assert len(FileShareExtraInfo.objects.all()) == 0
 
         data = {
             'repo_id': self.user_repo_id,
@@ -32,6 +33,8 @@ class AJAXGetDownloadLinkTest(BaseTestCase):
             'use_passwd': '1',
             'passwd': '12345678',
             'expire_days': 3,
+            'sent_to': 'a@a.com',
+            'note': 'xxx',
         }
         resp = self.client.post(self.url, data, HTTP_X_REQUESTED_WITH='XMLHttpRequest')
         json_resp = json.loads(resp.content)
@@ -39,6 +42,11 @@ class AJAXGetDownloadLinkTest(BaseTestCase):
         assert json_resp['token'] == ''
         assert len(FileShare.objects.all()) == 1
         assert len(FileShareVerify.objects.all()) == 1
+        assert len(FileShareExtraInfo.objects.all()) == 1
+
+        info = FileShareExtraInfo.objects.all()[0]
+        assert info.sent_to == 'a@a.com'
+        assert info.note == 'xxx'
 
     def test_can_list(self):
         """List a download link for a file.
@@ -50,6 +58,8 @@ class AJAXGetDownloadLinkTest(BaseTestCase):
             'use_passwd': '1',
             'passwd': '12345678',
             'expire_days': 3,
+            'sent_to': 'a@a.com',
+            'note': 'xxx',
         }
         resp = self.client.post(self.url, data, HTTP_X_REQUESTED_WITH='XMLHttpRequest')
 
