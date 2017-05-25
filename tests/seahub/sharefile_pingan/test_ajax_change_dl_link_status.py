@@ -23,6 +23,7 @@ class AJAXChangeDLLinkStatusTest(BaseTestCase, SetupRevisersMixin, AddDownloadLi
         resp = self.client.post(self.url, {
             't': self.fs.token,
             's': 2,
+            'msg': 'xxx',
         }, HTTP_X_REQUESTED_WITH='XMLHttpRequest')
 
         self.assertEqual(200, resp.status_code)
@@ -38,6 +39,7 @@ class AJAXChangeDLLinkStatusTest(BaseTestCase, SetupRevisersMixin, AddDownloadLi
         resp = self.client.post(self.url, {
             't': self.fs.token,
             's': 1,
+            'msg': 'xxx',
         }, HTTP_X_REQUESTED_WITH='XMLHttpRequest')
 
         self.assertEqual(200, resp.status_code)

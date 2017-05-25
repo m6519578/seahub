@@ -26,6 +26,28 @@ class SetupRevisersMixin(object):
         Profile.objects.add_or_update(self.admin.username, '', '')
         DetailedProfile.objects.add_detailed_profile(self.admin.username, department, '')
 
+    def setup_revisers2(self):
+        department = 'dept_A'
+        FileShareReviserChain.objects.add_file_share_reviser(
+            department,
+            # line manager
+            self.user.username, self.user.username, self.user.username,
+            # department head
+            self.user.username, self.user.username, self.user.username,
+            # comanager head
+            self.admin.username, self.admin.username, self.admin.username,
+            # compliance owner
+            self.admin.username, self.admin.username, self.admin.username,
+            # compliance owner2
+            self.user.username, self.user.username, self.user.username,
+        )
+
+        Profile.objects.add_or_update(self.user.username, '', '')
+        DetailedProfile.objects.add_detailed_profile(self.user.username, department, '')
+
+        Profile.objects.add_or_update(self.admin.username, '', '')
+        DetailedProfile.objects.add_detailed_profile(self.admin.username, department, '')
+
     def setup_reviser_map(self):
         FileShareReviserMap.objects.create(
             username=self.user.username, reviser_name='', reviser_account='',

@@ -45,6 +45,11 @@
     <input type="text" name="compliance-owner-account" id="compliance-owner-account" placeholder="{% trans "Account" %}" class="input account" /><br />
     <input type="text" name="compliance-owner-email" id="compliance-owner-email" placeholder="{% trans "Email" %}" class="input" /><br />
 
+    <label for="compliance-owner2">{% trans "Compliance Owner" %}2（可选）</label><br />
+    <input type="text" name="compliance-owner2-name" id="compliance-owner2-name" placeholder="{% trans "Name" %}" class="input name" />
+    <input type="text" name="compliance-owner2-account" id="compliance-owner2-account" placeholder="{% trans "Account" %}" class="input account" /><br />
+    <input type="text" name="compliance-owner2-email" id="compliance-owner2-email" placeholder="{% trans "Email" %}" class="input" /><br />
+    
     <p class="error hide"></p>
     <button type="submit" class="submit">{% trans "Submit" %}</button>
 </form>
@@ -60,7 +65,7 @@
         <th width="10%"><!--operation--></th>
     </tr>
     {% for r in revisers %}
-    <tr data-dept_name="{{r.department_name}}" data-line_manager_name="{{ r.line_manager_name}}" data-line_manager_account="{{ r.line_manager_account}}" data-line_manager_email="{{ r.line_manager_email}}" data-department_head_name="{{ r.department_head_name}}" data-department_head_account="{{ r.department_head_account}}" data-department_head_email="{{ r.department_head_email}}" data-comanager_head_name="{{ r.comanager_head_name}}" data-comanager_head_account="{{ r.comanager_head_account}}" data-comanager_head_email="{{ r.comanager_head_email}}" data-compliance_owner_name="{{ r.compliance_owner_name}}" data-compliance_owner_account="{{ r.compliance_owner_account}}" data-compliance_owner_email="{{ r.compliance_owner_email}}">
+    <tr data-dept_name="{{r.department_name}}" data-line_manager_name="{{ r.line_manager_name}}" data-line_manager_account="{{ r.line_manager_account}}" data-line_manager_email="{{ r.line_manager_email}}" data-department_head_name="{{ r.department_head_name}}" data-department_head_account="{{ r.department_head_account}}" data-department_head_email="{{ r.department_head_email}}" data-comanager_head_name="{{ r.comanager_head_name}}" data-comanager_head_account="{{ r.comanager_head_account}}" data-comanager_head_email="{{ r.comanager_head_email}}" data-compliance_owner_name="{{ r.compliance_owner_name}}" data-compliance_owner_account="{{ r.compliance_owner_account}}" data-compliance_owner_email="{{ r.compliance_owner_email}}" data-compliance_owner2_name="{{ r.compliance_owner2_name|default_if_none:""}}" data-compliance_owner2_account="{{ r.compliance_owner2_account|default_if_none:""}}" data-compliance_owner2_email="{{ r.compliance_owner2_email|default_if_none:""}}">
         <td>{{ r.department_name }}</td>
         <td>{{ r.line_manager_info|safe }}</td>
         <td>{{ r.department_head_info|safe }}</td>
@@ -108,6 +113,10 @@ $('#add-reviser-form').submit(function() {
         compliance_owner_account = $.trim(form.children('[name="compliance-owner-account"]').val()),
         compliance_owner_email = $.trim(form.children('[name="compliance-owner-email"]').val());
 
+        compliance_owner2_name = $.trim(form.children('[name="compliance-owner2-name"]').val()),
+        compliance_owner2_account = $.trim(form.children('[name="compliance-owner2-account"]').val()),
+        compliance_owner2_email = $.trim(form.children('[name="compliance-owner2-email"]').val());
+    
     function validateEmail(email) {
         var re = /^([\w-]+(?:\.[\w-]+)*)@((?:[\w-]+\.)*\w[\w-]{0,66})\.([a-z]{2,6}(?:\.[a-z]{2})?)$/i;
         return re.test(email);
@@ -181,6 +190,10 @@ $('#add-reviser-form').submit(function() {
         'compliance_owner_name': compliance_owner_name,
         'compliance_owner_account': compliance_owner_account,
         'compliance_owner_email': compliance_owner_email,
+
+        'compliance_owner2_name': compliance_owner2_name,
+        'compliance_owner2_account': compliance_owner2_account,
+        'compliance_owner2_email': compliance_owner2_email
     };
 
     disable(submit_btn);
@@ -209,7 +222,7 @@ $('#add-reviser-form').submit(function() {
 $('#add-reviser-btn').click(function() {
     $('#add-reviser-form').find("input[type=text]").val("");
     $('#add-reviser-form').modal();
-    $('#simplemodal-container').css({'width':'auto'});
+    $('#simplemodal-container').css({'width':'auto', 'height': 'auto'});
 });
 
 $('.edit').click(function() {
@@ -231,6 +244,10 @@ $('.edit').click(function() {
     var compliance_owner_account = $($(this).closest('tr')).data('compliance_owner_account');
     var compliance_owner_email = $($(this).closest('tr')).data('compliance_owner_email');
 
+    var compliance_owner2_name = $($(this).closest('tr')).data('compliance_owner2_name');
+    var compliance_owner2_account = $($(this).closest('tr')).data('compliance_owner2_account');
+    var compliance_owner2_email = $($(this).closest('tr')).data('compliance_owner2_email');
+    
     // fill form value
     $('#department-name', '#add-reviser-form').val(dept_name);
 
@@ -250,8 +267,12 @@ $('.edit').click(function() {
     $('#compliance-owner-account', '#add-reviser-form').val(compliance_owner_account);
     $('#compliance-owner-email', '#add-reviser-form').val(compliance_owner_email);
 
+    $('#compliance-owner2-name', '#add-reviser-form').val(compliance_owner2_name);
+    $('#compliance-owner2-account', '#add-reviser-form').val(compliance_owner2_account);
+    $('#compliance-owner2-email', '#add-reviser-form').val(compliance_owner2_email);
+    
     $('#add-reviser-form').modal();
-    $('#simplemodal-container').css({'width':'auto'});
+    $('#simplemodal-container').css({'width':'auto', 'height': 'auto'});
 
     return false;
 });

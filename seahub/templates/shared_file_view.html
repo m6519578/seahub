@@ -45,6 +45,13 @@
                 <button id="pass-btn">{% trans "Approve"%}</button>
                 <button id="veto-btn" style="color: #900;">{% trans "Veto"%}</button>
             </span>
+
+            <form action="" class="pass-or-veto-msg-form hide">
+                <h3>审批意见</h3>
+                <textarea name="msg" class="textarea"></textarea><br />
+                <p class="error hide"></p>
+                <button type="submit" class="submit">提交</button>
+            </form>
             {% else %}
 
             {% if request.user.is_authenticated and request.user.username != shared_by %}
@@ -180,45 +187,49 @@ $(function() {
         show_review_btns();
     {% endif %}
 
-    $('#pass-btn').click(function() {
-        $.ajax({
-            url: '{% url "ajax_change_dl_link_status" %}',
-            type: 'POST',
-            dataType: 'html',
-            beforeSend: prepareCSRFToken,
-            data: {
-                's': 1,
-                't': "{{shared_token}}"
-            },
-            success: function(data) {
-                feedback('success', 'success');
-                show_pass();
-            },
-            error: function(data) {
-                feedback('error', 'error');
-            }
-        });
-        return false;
+
+    $('#pass-btn, #veto-btn').click(function() {
+        var $form = $('.pass-or-veto-msg-form');
+        $form.modal();
+        $('#simplemodal-container').css({'width':'auto', 'height':'auto'})
+
+        if ($(this).attr('id') == 'pass-btn') {
+            $form.attr('id', 'pass-msg-form');
+        } else {
+            $form.attr('id', 'veto-msg-form');
+        }
     });
 
-    $('#veto-btn').click(function() {
+    $('.pass-or-veto-msg-form').submit(function() {
+        var $form = $(this);
+        var msg = $.trim($('[name="msg"]', $form).val());
+        var $error = $('.error', $form);
+        var pass = $form.attr('id') == 'pass-msg-form' ? true : false;
+
         $.ajax({
             url: '{% url "ajax_change_dl_link_status" %}',
             type: 'POST',
             dataType: 'html',
             beforeSend: prepareCSRFToken,
             data: {
-                's': 2,
-                't': "{{shared_token}}"
+                's': pass ? 1 : 2,
+                't': '{{shared_token}}',
+                'msg': msg
             },
-            success: function(data) {
+            success: function() {
+                $.modal.close();
                 feedback('success', 'success');
-                show_veto();
+                if (pass) {
+                    show_pass();
+                } else {
+                    show_veto();
+                }
             },
-            error: function(data) {
-                feedback('error', 'error');
+            error: function() {
+                $error.html('出错了，请稍后再试。').show();
             }
         });
+
         return false;
     });
     

@@ -78,9 +78,16 @@ def sys_reviser_admin(request):
             r.comanager_head_name, r.comanager_head_account,
             r.comanager_head_email)
 
-        r.compliance_owner_info = format_td(
-            r.compliance_owner_name, r.compliance_owner_account,
-            r.compliance_owner_email)
+        if r.compliance_owner2_email:
+            l = []
+            l.append(r.compliance_owner_name + ' | ' + r.compliance_owner2_name)
+            l.append(r.compliance_owner_account + ' | ' + r.compliance_owner2_account)
+            l.append(r.compliance_owner_email + ' | ' + r.compliance_owner2_email)
+            r.compliance_owner_info = '<br />'.join(l)
+        else:
+            r.compliance_owner_info = format_td(
+                r.compliance_owner_name, r.compliance_owner_account,
+                r.compliance_owner_email)
 
     return render_to_response(
         'sysadmin/sys_reviseradmin.html', {
@@ -189,6 +196,10 @@ def reviser_add(request):
         result['error'] = _(u'Invalid compliance owner email')
         return HttpResponse(json.dumps(result), status=400, content_type=content_type)
 
+    compliance_owner2_name = request.POST.get('compliance_owner2_name', '')
+    compliance_owner2_account = request.POST.get('compliance_owner2_account', '')
+    compliance_owner2_email = request.POST.get('compliance_owner2_email', '')
+
     try:
         fs_rchain = FileShareReviserChain.objects.get(department_name=department_name)
 
@@ -208,6 +219,10 @@ def reviser_add(request):
         fs_rchain.compliance_owner_account = compliance_owner_account
         fs_rchain.compliance_owner_email = compliance_owner_email
 
+        fs_rchain.compliance_owner2_name = compliance_owner2_name
+        fs_rchain.compliance_owner2_account = compliance_owner2_account
+        fs_rchain.compliance_owner2_email = compliance_owner2_email
+
         fs_rchain.save()
 
         result['success'] = True
@@ -222,7 +237,9 @@ def reviser_add(request):
             line_manager_name, line_manager_account, line_manager_email,
             department_head_name, department_head_account, department_head_email,
             comanager_head_name, comanager_head_account, comanager_head_email,
-            compliance_owner_name, compliance_owner_account, compliance_owner_email)
+            compliance_owner_name, compliance_owner_account, compliance_owner_email,
+            compliance_owner2_name, compliance_owner2_account, compliance_owner2_email,
+        )
 
         result['success'] = True
         return HttpResponse(json.dumps(result), content_type=content_type)
@@ -523,6 +540,9 @@ def sys_links_report_export_excel(request):
             _("Compliance Owner Email"),
             _("Compliance Owner Status"),
             _("Time"),
+            _("Compliance Owner Email") + ' 2',
+            _("Compliance Owner Status"),
+            _("Time"),
             _("Created at"),
             _("First Download Time"),
             _("Downloads"),
@@ -630,6 +650,23 @@ def sys_links_report_export_excel(request):
             if reviser_info.compliance_owner_email:
                 compliance_owner_email = reviser_info.compliance_owner_email
 
+            # get compliance owner2 verify status
+            compliance_owner2_status = '--'
+            compliance_owner2_vtime = '--'
+            compliance_owner2_email = '--'
+            if reviser_info.compliance_owner2_email:
+                if fs_verify.compliance_owner2_status == STATUS_VERIFING:
+                    compliance_owner2_status = _('verifing')
+                elif fs_verify.compliance_owner2_status == STATUS_PASS:
+                    compliance_owner2_status = _('pass')
+                elif fs_verify.compliance_owner2_status == STATUS_VETO:
+                    compliance_owner2_status = _('veto')
+
+                if fs_verify.compliance_owner2_vtime:
+                    compliance_owner2_vtime = fs_verify.compliance_owner2_vtime.strftime('%Y-%m-%d')
+
+                compliance_owner2_email = reviser_info.compliance_owner2_email
+
             # prepare excel data
             row = [
                 d_link.filename,
@@ -649,6 +686,9 @@ def sys_links_report_export_excel(request):
                 compliance_owner_email,
                 compliance_owner_status,
                 compliance_owner_vtime,
+                compliance_owner2_email,
+                compliance_owner2_status,
+                compliance_owner2_vtime,
                 d_link.ctime.strftime('%Y-%m-%d'),
                 d_link.first_dl_time.strftime('%Y-%m-%d') if d_link.first_dl_time else '--',
                 d_link.dl_cnt,

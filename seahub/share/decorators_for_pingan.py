@@ -78,6 +78,12 @@ def share_link_approval_for_pingan(func):
                     user_pass = True
                 if fs_v.compliance_owner_veto():
                     user_veto = True
+
+            elif req_user == info.compliance_owner2_email:
+                if fs_v.compliance_owner2_pass():
+                    user_pass = True
+                if fs_v.compliance_owner2_veto():
+                    user_veto = True
             else:
                 return render_error(request, _(u'权限不足：你无法访问该文件。'))
 

@@ -48,7 +48,8 @@ def list_share_links_by_reviser(username):
         if e.line_manager_email == username or \
            e.department_head_email == username or \
            e.comanager_head_email == username or \
-           e.compliance_owner_email == username:
+           e.compliance_owner_email == username or \
+           e.compliance_owner2_email == username:
             dept_list.append(e.department_name)
 
     if dept_list:
@@ -123,6 +124,15 @@ def get_verify_link_by_user(username):
             if fs_verify.compliance_owner_vtime:
                 fs.verify_time = fs_verify.compliance_owner_vtime
 
+        elif username == info.compliance_owner2_email:
+            if fs_verify.compliance_owner2_pass():
+                user_pass = True
+            if fs_verify.compliance_owner2_veto():
+                user_veto = True
+
+            if fs_verify.compliance_owner2_vtime:
+                fs.verify_time = fs_verify.compliance_owner2_vtime
+
         if user_pass or user_veto:
             fs.user_pass = user_pass
             fs.user_veto = user_veto
@@ -151,6 +161,9 @@ def get_verify_link_by_user(username):
             elif username == info.compliance_owner_email:
                 if fs_verify.compliance_owner_pass() or fs_verify.compliance_owner_veto():
                     verified_links.append(fs)
+            elif username == info.compliance_owner2_email:
+                if fs_verify.compliance_owner2_pass() or fs_verify.compliance_owner2_veto():
+                    verified_links.append(fs)
         else:
             if username == info.line_manager_email:
                 if not fs_verify.dlp_verifying():
@@ -162,10 +175,14 @@ def get_verify_link_by_user(username):
                 if fs_verify.line_manager_pass() \
                    and fs_verify.department_head_pass():
                     verifing_links.append(fs)
-            elif username == info.compliance_owner_email:
+            elif username == info.compliance_owner_email or \
+                username == info.compliance_owner2_email:
                 if fs_verify.line_manager_pass() \
                    and fs_verify.department_head_pass() \
-                   and fs_verify.comanager_head_pass():
+                   and fs_verify.comanager_head_pass() \
+                   and fs.is_verifing():
+                    # Handle the case that com_owner 2 pass, which will add
+                    # this link to the list in com_owner1 .
                     verifing_links.append(fs)
 
     return verifing_links, verified_links
@@ -285,6 +302,8 @@ def ajax_change_dl_link_status(request):
     except ValueError:
         return HttpResponse({}, status=400, content_type=content_type)
 
+    msg = request.POST.get('msg', None)
+
     if status not in (STATUS_VERIFING, STATUS_PASS, STATUS_VETO):
         return HttpResponse({}, status=400, content_type=content_type)
 
@@ -295,15 +314,33 @@ def ajax_change_dl_link_status(request):
 
     username = request.user.username
     reviser_info = get_reviser_info_by_user(fileshare.username)
-    revisers = [] if reviser_info is None else [
-        reviser_info.line_manager_email, reviser_info.department_head_email,
-        reviser_info.comanager_head_email, reviser_info.compliance_owner_email,
-    ]
-    if username not in revisers:
+    if reviser_info.compliance_owner2_email:
+        revisers = [] if reviser_info is None else [
+            reviser_info.line_manager_email, reviser_info.department_head_email,
+            reviser_info.comanager_head_email,
+            (reviser_info.compliance_owner_email, reviser_info.compliance_owner2_email)
+        ]
+    else:
+        revisers = [] if reviser_info is None else [
+            reviser_info.line_manager_email, reviser_info.department_head_email,
+            reviser_info.comanager_head_email, reviser_info.compliance_owner_email,
+        ]
+
+    is_reviser = False
+    for e in revisers:
+        if isinstance(e, basestring):
+            if username == e:
+                is_reviser = True
+        else:
+            for x in e:
+                if username == x:
+                    is_reviser = True
+
+    if not is_reviser:
         return HttpResponse({}, status=403, content_type=content_type)
 
     try:
-        FileShareVerify.objects.set_status(fileshare, status, username)
+        FileShareVerify.objects.set_status(fileshare, status, username, msg=msg)
     except ValueError:
         return HttpResponse({}, status=400, content_type=content_type)
 
@@ -320,12 +357,21 @@ def ajax_change_dl_link_status(request):
             next_reviser = revisers[idx + 1]
 
     if status == STATUS_PASS and next_reviser is not None:
-        # send notice first
-        file_shared_link_verify.send(sender=None,
-                                     from_user=fileshare.username,
-                                     to_user=next_reviser,
-                                     token=fileshare.token)
-        email_reviser(fileshare, next_reviser)
+        if isinstance(next_reviser, tuple):
+            for e in next_reviser:
+                # send notice first
+                file_shared_link_verify.send(sender=None,
+                                             from_user=fileshare.username,
+                                             to_user=e,
+                                             token=fileshare.token)
+                email_reviser(fileshare, e)
+        else:
+            # send notice first
+            file_shared_link_verify.send(sender=None,
+                                         from_user=fileshare.username,
+                                         to_user=next_reviser,
+                                         token=fileshare.token)
+            email_reviser(fileshare, next_reviser)
 
     # email verify result to shared link owner
     email_verify_result(fileshare, fileshare.username,
@@ -399,19 +445,23 @@ def ajax_remind_revisers(request):
     reviser_info = get_reviser_info_by_user(fileshare.username)
     fs_v = FileShareVerify.objects.get(share_link=fileshare)
 
+    send_to = []
     if fs_v.line_manager_verifying():
-        send_to = reviser_info.line_manager_email
+        send_to.append(reviser_info.line_manager_email)
     elif fs_v.department_head_verifying():
-        send_to = reviser_info.department_head_email
+        send_to.append(reviser_info.department_head_email)
     elif fs_v.comanager_head_verifying():
-        send_to = reviser_info.comanager_head_email
-    elif fs_v.compliance_owner_verifying():
-        send_to = reviser_info.compliance_owner_email
+        send_to.append(reviser_info.comanager_head_email)
+    elif (fs_v.compliance_owner_verifying() and fs_v.compliance_owner2_verifying):
+        send_to.append(reviser_info.compliance_owner_email)
+        if reviser_info.compliance_owner2_email:
+            send_to.append(reviser_info.compliance_owner2_email)
     else:
         return HttpResponse({}, status=400, content_type=content_type)
 
-    email_reviser(fileshare, send_to)
-    logger.info('An remind email sent to %s triggered by user %s' % (
-        send_to, fileshare.username))
-    return HttpResponse(json.dumps({'sent': [send_to]}),
+    for x in send_to:
+        email_reviser(fileshare, x)
+        logger.info('An remind email sent to %s triggered by user %s' % (
+            x, fileshare.username))
+    return HttpResponse(json.dumps({'sent': send_to}),
                         status=200, content_type=content_type)

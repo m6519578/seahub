@@ -78,6 +78,8 @@ def is_file_link_reviser(username):
         all_revisers.append(info.department_head_email)
         all_revisers.append(info.comanager_head_email)
         all_revisers.append(info.compliance_owner_email)
+        if info.compliance_owner2_email:
+            all_revisers.append(info.compliance_owner2_email)
 
     all_revisers += FileShareReviserMap.objects.values_list('reviser_email',
                                                             flat=True)
@@ -150,7 +152,9 @@ def get_reviser_info_by_user(username):
         'line_manager_name', 'line_manager_account', 'line_manager_email',
         'department_head_name', 'department_head_account', 'department_head_email',
         'comanager_head_name', 'comanager_head_account', 'comanager_head_email',
-        'compliance_owner_name', 'compliance_owner_account', 'compliance_owner_email'])
+        'compliance_owner_name', 'compliance_owner_account', 'compliance_owner_email',
+        'compliance_owner2_name', 'compliance_owner2_account', 'compliance_owner2_email',
+    ])
 
     r_map = FileShareReviserMap.objects.filter(username=username)
     if len(r_map) > 0:
@@ -166,7 +170,10 @@ def get_reviser_info_by_user(username):
             comanager_head_email=r_map[0].reviser_email,
             compliance_owner_name=r_map[0].reviser_name,
             compliance_owner_account=r_map[0].reviser_account,
-            compliance_owner_email=r_map[0].reviser_email)
+            compliance_owner_email=r_map[0].reviser_email,
+            compliance_owner2_name=r_map[0].reviser_name,
+            compliance_owner2_account=r_map[0].reviser_account,
+            compliance_owner2_email=r_map[0].reviser_email)
         return ret
 
     d_profile = DetailedProfile.objects.get_detailed_profile_by_user(username)
@@ -202,6 +209,10 @@ def get_reviser_info_by_user(username):
         comanager_head_email=row.comanager_head_email,
         compliance_owner_name=row.compliance_owner_name,
         compliance_owner_account=row.compliance_owner_account,
-        compliance_owner_email=row.compliance_owner_email)
+        compliance_owner_email=row.compliance_owner_email,
+        compliance_owner2_name=row.compliance_owner2_name,
+        compliance_owner2_account=row.compliance_owner2_account,
+        compliance_owner2_email=row.compliance_owner2_email,
+    )
 
     return ret
