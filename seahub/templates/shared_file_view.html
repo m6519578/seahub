@@ -38,9 +38,9 @@
         <div class="fright">
 {% comment "Start PingAn Group related" %}{% endcomment %}
             {% if need_verify %}
-            <span id="pass" class="hide" style="color: #60b044;">{% trans "Review result: This file is passed by you." %}</span>
+            <span id="pass" class="hide" style="color: #60b044;">{% if other_info %}审核结果：该文件已被 {{ other_info }} 通过。{% else %}{% trans "Review result: This file is passed by you." %}{% endif %}</span>
 
-            <span id="veto" class="hide" style="color: #900;">{% trans "Review result: This file is vetoed by you." %}</span>
+            <span id="veto" class="hide" style="color: #900;">{% if other_info %}审核结果：该文件已被 {{ other_info }}否决。{% else %}{% trans "Review result: This file is vetoed by you." %}{% endif %}</span>
             <span class="review-btns hide">
                 <button id="pass-btn">{% trans "Approve"%}</button>
                 <button id="veto-btn" style="color: #900;">{% trans "Veto"%}</button>
@@ -179,9 +179,9 @@ $(function() {
         $('.review-btns').show();
     };
 
-    {% if user_pass %}
+    {% if user_pass or other_pass %}
         show_pass();
-    {% elif user_veto %}
+    {% elif user_veto or other_veto %}
         show_veto();
     {% else %}
         show_review_btns();

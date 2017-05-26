@@ -27,8 +27,18 @@ def share_link_approval_for_pingan(func):
     no mater encrypted or expired.
     """
     def _decorated(request, token, *args, **kwargs):
+        req_user = request.user.username
         fileshare = get_object_or_404(FileShare, token=token)
-        if fileshare.pass_verify():
+
+        ignore_list = []
+        info = get_reviser_info_by_user(fileshare.username)
+        if info is not None:
+            ignore_list = [info.line_manager_email, info.department_head_email,
+                           info.comanager_head_email, info.compliance_owner_email]
+            if info.compliance_owner2_email:
+                ignore_list.append(info.compliance_owner2_email)
+
+        if fileshare.pass_verify() and req_user not in ignore_list:
             if fileshare.is_expired():
                 raise Http404
 
@@ -43,17 +53,16 @@ def share_link_approval_for_pingan(func):
         need_verify = False
 
         user_pass, user_veto = False, False
+        other_pass, other_veto, other_info = False, False, None
         if request.user.is_anonymous():
             # show login page
             path = urlquote(request.get_full_path())
             tup = settings.LOGIN_URL, REDIRECT_FIELD_NAME, path
             return HttpResponseRedirect('%s?%s=%s' % tup)
         else:
-            info = get_reviser_info_by_user(fileshare.username)
             if info is None:
                 return render_error(request, _(u'权限不足：你无法访问该文件。'))
 
-            req_user = request.user.username
             fs_v = FileShareVerify.objects.get(share_link=fileshare)
             if req_user == info.line_manager_email:
                 if fs_v.line_manager_pass():
@@ -78,12 +87,24 @@ def share_link_approval_for_pingan(func):
                     user_pass = True
                 if fs_v.compliance_owner_veto():
                     user_veto = True
+                if fs_v.compliance_owner2_pass():
+                    other_pass = True
+                    other_info = '%s (%s)' % (info.compliance_owner2_name, info.compliance_owner2_email)
+                if fs_v.compliance_owner2_veto():
+                    other_veto = True
+                    other_info = '%s (%s)' % (info.compliance_owner2_name, info.compliance_owner2_email)
 
             elif req_user == info.compliance_owner2_email:
                 if fs_v.compliance_owner2_pass():
                     user_pass = True
                 if fs_v.compliance_owner2_veto():
                     user_veto = True
+                if fs_v.compliance_owner_pass():
+                    other_pass = True
+                    other_info = '%s (%s)' % (info.compliance_owner_name, info.compliance_owner_email)
+                if fs_v.compliance_owner_veto():
+                    other_veto = True
+                    other_info = '%s (%s)' % (info.compliance_owner_name, info.compliance_owner_email)
             else:
                 return render_error(request, _(u'权限不足：你无法访问该文件。'))
 
@@ -101,6 +122,9 @@ def share_link_approval_for_pingan(func):
                 'need_verify': need_verify,
                 'user_pass': user_pass,
                 'user_veto': user_veto,
+                'other_pass': other_pass,
+                'other_veto': other_veto,
+                'other_info': other_info,
                 'share_to': share_to,
                 'note': note,
                 'show_dlp_veto_msg': fs_v.dlp_veto(),

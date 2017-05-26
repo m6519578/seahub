@@ -5,6 +5,7 @@ PingAn Group related views functions.
 import logging
 import json
 import os
+from collections import OrderedDict
 
 from django.core.cache import cache
 from django.http import HttpResponse, HttpResponseRedirect
@@ -352,9 +353,11 @@ def ajax_change_dl_link_status(request):
 
     # email next reviser in revisers chain if current reviser approved
     next_reviser = None
-    for idx, elem in enumerate(revisers):
-        if elem == username and idx < len(revisers) - 1:
-            next_reviser = revisers[idx + 1]
+    new_l = list(OrderedDict.fromkeys(revisers))  # remove deuplicated emails and keep order
+    for idx, elem in enumerate(new_l):
+        if elem == username and idx < len(new_l) - 1:
+            next_reviser = new_l[idx + 1]
+            break
 
     if status == STATUS_PASS and next_reviser is not None:
         if isinstance(next_reviser, tuple):
