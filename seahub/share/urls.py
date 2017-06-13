@@ -30,5 +30,8 @@ urlpatterns += patterns(
     url(r'^ajax/change-download-link-status/$', ajax_change_dl_link_status, name='ajax_change_dl_link_status'),
     url(r'^ajax/get-link-verify-code/$', ajax_get_link_verify_code, name='ajax_get_link_verify_code'),
     url(r'^ajax/remind-revisers/$', ajax_remind_revisers, name='ajax_remind_revisers'),
+    url(r'^ajax/get-link-receivers/$', ajax_get_link_receivers, name='ajax_get_link_receivers'),
+    url(r'^ajax/email-link-receivers/$', ajax_email_link_receivers, name='ajax_email_link_receivers'),
+    url(r'^ajax/get-link-status/$', ajax_get_link_status, name='ajax_get_link_status'),
 )
 ######################### End PingAn Group related ##########################

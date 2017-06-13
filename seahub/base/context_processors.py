@@ -37,6 +37,11 @@ try:
 except ImportError:
     MULTI_TENANCY = False
 
+try:
+    from seahub.settings import EMAIL_HOST_USER
+except ImportError:
+    EMAIL_HOST_USER = ''
+
 def base(request):
     """
     Add seahub base configure to the context.
@@ -90,4 +95,5 @@ def base(request):
         'search_repo_id': search_repo_id,
         'SITE_ROOT': SITE_ROOT,
         'constance_enabled': dj_settings.CONSTANCE_ENABLED,
+        'email_host_user': EMAIL_HOST_USER,
         }

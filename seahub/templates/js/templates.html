@@ -459,8 +459,8 @@
                         <input type="text" name="expire_days" class="input" id="expire-days" />
                     </div>
 
-                    <label for="sent_to">发送对象</label><br />
-                    <input type="text" class="input" name="sent_to" placeholder="{% trans "Emails, Seperated by ','"%}" id="email" /><br />
+                    <label for="sent-to">发送对象</label><br />
+                    <input type="text" class="input" name="sent_to" placeholder="{% trans "Emails, Seperated by ','"%}" id="sent-to" /><br />
 
                     <label for="note">外发需求</label><br />
                     <textarea class="textarea" name="note"></textarea><br />
@@ -469,23 +469,14 @@
                     <input type="submit" value="{% trans 'Generate'%}" />
                 </form>
                 <div id="download-link-operations" class="hide">
-                    <dl>
-                        <dt>{% trans "Link: " %}</dt>
-                        <dd id="download-link"></dd>
-                        <% if (!is_dir) { %>
-                        <dt>{% trans "Direct Download Link: " %}</dt>
-                        <dd id="direct-dl-link"></dd>
-                        <% } %>
-                        <dt>{% trans "Password: " %}</dt>
-                        <dd id="download-link-password"></dd>
-                    </dl>
-                    <button id="send-download-link">{% trans 'Send' %}</button>
-                    <button id="delete-download-link">{% trans 'Delete' %}</button>
+                    <p>该文件下载链接已通过{{email_host_user}}外发至邮箱：<span id="emails-download-link-sent-to"></span>（发送于 <span id="download-link-sent-time"></span>）</p>
+                    <p> {% trans "Password: " %} <span id="download-link-password"></span></p>
+                    <p class="error hide" id="download-link-expired">已过期</p>
+                    <button id="send-download-link">重新发送</button>
+                    <button id="delete-download-link">删除链接</button>
                     <form id="send-download-link-form" action="" class="hide">
                         <label for="email">{% trans "Send to:"%}</label><br />
                         <input type="text" class="input" name="email" placeholder="{% trans "Emails, Seperated by ','"%}" id="email" /><br />
-                        <label for="extra-msg">{% trans "Message (optional):"%}</label><br />
-                        <textarea class="textarea" name="extra_msg" id="extra-msg"></textarea><br />
                         <p class="error hide"></p>
                         <input type="submit" value="{% trans "Submit" %}" class="submit" />
                         <input type="button" value="{% trans "Cancel"%}" class="cancel" id="cancel-share-download-link" />

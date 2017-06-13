@@ -119,11 +119,12 @@ define([
                     if (data['download_link']) {
                         _this.download_link = data["download_link"]; // for 'link send'
                         _this.download_link_token = data["token"]; // for 'link delete'
-                        _this.$('#download-link').html(data['download_link']); // TODO:
-                        _this.$('#direct-dl-link').html(data['download_link']+'?raw=1'); // TODO:
+
+                        _this.$('#emails-download-link-sent-to').html(Common.HTMLescape(data['receivers'].join(', ')));
+                        _this.$('#download-link-sent-time').html(data['pass_time']);
                         if (data['is_expired']) {
                             _this.$('#send-download-link').addClass('hide');
-                            _this.$('#download-link, #direct-dl-link').append(' <span class="error">(' + gettext('Expired') + ')</span>');
+                            _this.$('#download-link-expired').show();
                         }
                         _this.$('#download-link-password').html(data['password']);
                         _this.$('#download-link-operations').removeClass('hide');
@@ -326,11 +327,11 @@ define([
                     if (!data.status || data.status == '1') {
                         // not enable sharelink verify or pass verify
 ///////////////////////// End PingAn Group related //////////////////////////
-                    _this.$('#download-link').html(data["download_link"]); // TODO: add 'click & select' func
-                    _this.$('#direct-dl-link').html(data['download_link'] + '?raw=1');
                     _this.download_link = data["download_link"]; // for 'link send'
                     _this.download_link_token = data["token"]; // for 'link delete'
 ///////////////////////// Start PingAn Group related ////////////////////////
+                    _this.$('#emails-download-link-sent-to').html(Common.HTMLescape(data['receivers'].join(', ')));
+                    _this.$('#download-link-sent-time').html(data['pass_time']);
                     _this.$('#download-link-password').html(data['password']);
 ///////////////////////// End PingAn Group related //////////////////////////
                     _this.$('#download-link-operations').removeClass('hide');
@@ -370,9 +371,43 @@ define([
         },
 
         showDownloadLinkSendForm: function() {
+            var _this = this;
+            var $form = this.$('#send-download-link-form');
             this.$('#send-download-link, #delete-download-link').addClass('hide');
-            this.$('#send-download-link-form').removeClass('hide');
-            // no addAutocomplete for email input
+
+            if (this.download_link_token_to_sent == this.download_link_token) {
+                $form.removeClass('hide');
+                return;
+            }
+
+            $.ajax({
+                url: Common.getUrl({'name': 'get_link_receivers'}),
+                type: 'GET',
+                data: {'token': this.download_link_token},
+                dataType: 'json',
+                success: function(data) { // data: {"receivers": ["xx@1.com"]}
+                    var emails = data.receivers;
+                    if (emails.length) {
+                        var e_opts = '';
+                        for (var i = 0, len = emails.length; i < len; i++) {
+                            e_opts += '<option value="' + Common.HTMLescape(emails[i]) + '" data-index="' + i + '">' + Common.HTMLescape(emails[i]) + '</option>';
+                        }
+                        $('[name="email"]', $form).replaceWith('<select name="email" multiple="multiple"></select>');
+                        $('[name="email"]', $form).html(e_opts).select2({
+                            width: '268px',
+                            placeholder: gettext("Select emails"),
+                            escapeMarkup: function(m) { return m; }
+                        });
+
+                        _this.download_link_token_to_sent = _this.download_link_token;
+                    }
+                },
+                error: function() {
+                },
+                complete: function() {
+                    $form.removeClass('hide');
+                }
+            });
         },
 
         sendLink: function(options) {

@@ -23,7 +23,8 @@ from seahub.profile.models import DetailedProfile
 from seahub.share.constants import STATUS_VERIFING, STATUS_PASS, STATUS_VETO
 from seahub.share.models import (FileShare, FileShareReviserChain,
                                  FileShareVerify, FileShareDownloads,
-                                 FileShareReceiver, FileShareReviserMap)
+                                 FileShareReceiver, FileShareReviserMap,
+                                 FileShareExtraInfo)
 from seahub.share.share_link_checking import (
     email_reviser, email_verify_result, get_reviser_info_by_user)
 from seahub.share.signals import file_shared_link_verify
@@ -350,6 +351,11 @@ def ajax_change_dl_link_status(request):
         new_expire_date = timezone.now() + (fileshare.expire_date - fileshare.ctime)
         fileshare.expire_date = new_expire_date
         fileshare.save()
+        # send email to share link receivers
+        try:
+            fileshare.email_receivers()
+        except Exception as e:
+            logger.error(e)
 
     # email next reviser in revisers chain if current reviser approved
     next_reviser = None
@@ -467,4 +473,105 @@ def ajax_remind_revisers(request):
         logger.info('An remind email sent to %s triggered by user %s' % (
             x, fileshare.username))
     return HttpResponse(json.dumps({'sent': send_to}),
+                        status=200, content_type=content_type)
+
+@login_required
+def ajax_get_link_receivers(request):
+    """Get receiver emails of a shared link.
+    """
+    content_type = 'application/json; charset=utf-8'
+    token = request.GET.get('token')
+
+    try:
+        fs = FileShare.objects.get(token=token)
+    except FileShare.DoesNotExist:
+        return HttpResponse(json.dumps({
+            'error': _('Share link is not found')
+        }), status=400, content_type=content_type)
+
+    if fs.username != request.user.username:
+        return HttpResponse({}, status=403, content_type=content_type)
+
+    fs_info = FileShareExtraInfo.objects.filter(share_link=fs)
+    if len(fs_info) == 0:
+        return HttpResponse(json.dumps({
+            'error': 'Sent to emails are not found'
+        }), status=400, content_type=content_type)
+
+    sent_to = [x.sent_to for x in fs_info]
+    return HttpResponse(json.dumps({'receivers': sent_to}),
+                        status=200, content_type=content_type)
+
+@login_required
+def ajax_email_link_receivers(request):
+    """Send email to link receivers
+    """
+    content_type = 'application/json; charset=utf-8'
+    token = request.GET.get('token')
+
+    try:
+        fs = FileShare.objects.get(token=token)
+    except FileShare.DoesNotExist:
+        return HttpResponse(json.dumps({
+            'error': _('Share link is not found')
+        }), status=400, content_type=content_type)
+
+    if fs.is_expired():
+        return HttpResponse(json.dumps({
+            'error': u"发送失败：该外链已过期",
+        }), status=400, content_type=content_type)
+
+    if fs.username != request.user.username:
+        return HttpResponse({}, status=403, content_type=content_type)
+
+    fs.email_receivers()
+    return HttpResponse(json.dumps({'success': True}),
+                        status=200, content_type=content_type)
+
+@login_required
+def ajax_get_link_status(request):
+    """Get link status and other info.
+    """
+    content_type = 'application/json; charset=utf-8'
+    token = request.GET.get('token')
+
+    try:
+        fs = FileShare.objects.get(token=token)
+    except FileShare.DoesNotExist:
+        return HttpResponse(json.dumps({
+            'error': _('Share link is not found')
+        }), status=400, content_type=content_type)
+
+    if fs.username != request.user.username:
+        return HttpResponse({}, status=403, content_type=content_type)
+
+    fs_v = FileShareVerify.objects.get_verbose_status(fs)
+    if fs_v is None:
+        return HttpResponse(json.dumps({
+            'error': _('No revisers found. Please contact system admin.')
+        }), status=400, content_type=content_type)
+
+    ret = {}
+    s_list = []
+    for s, v in fs_v:
+        s_list.append(v)
+    ret['status'] = s_list
+
+    fs_info = FileShareExtraInfo.objects.filter(share_link=fs)
+    if len(fs_info) == 0:
+        receivers = []
+    else:
+        receivers = [x.sent_to for x in fs_info]
+    ret['receivers'] = receivers
+
+    ret['pass_verify'] = fs.pass_verify()
+    ret['sent_at'] = fs.get_pass_time()
+
+    decoded_pwd = fs.get_decoded_password(fs.password)
+    if decoded_pwd:
+        ret['password'] = decoded_pwd
+    else:
+        ret['password'] = _('Unsupported password format, please regenerate link if you want to show password.')
+
+    return HttpResponse(json.dumps(ret),
                         status=200, content_type=content_type)

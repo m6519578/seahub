@@ -2,7 +2,7 @@ from django.core.urlresolvers import reverse
 from django.core import mail
 
 from seahub.test_utils import BaseTestCase
-from seahub.share.models import FileShare
+from seahub.share.models import FileShare, FileShareVerify
 from .mixins import SetupRevisersMixin, AddDownloadLinkMixin
 
 
@@ -56,3 +56,36 @@ class AJAXChangeDLLinkStatusTest(BaseTestCase, SetupRevisersMixin, AddDownloadLi
 
         assert 'pass' in mail.outbox[1].body  # approved by user
         assert '/share/links/' in mail.outbox[1].body
+
+    def test_can_email_receivers(self):
+        assert len(FileShare.objects.all()) == 1
+        assert len(mail.outbox) == 0
+
+        fs_verify = FileShareVerify.objects.get(share_link=self.fs)
+        fs_verify.DLP_status = 2
+        fs_verify.save()
+
+        self.login_as(self.user)
+        resp = self.client.post(self.url, {
+            't': self.fs.token,
+            's': 1,
+            'msg': 'xxx',
+        }, HTTP_X_REQUESTED_WITH='XMLHttpRequest')
+        assert len(mail.outbox) == 2
+
+        self.logout()
+
+        self.login_as(self.admin)
+        resp = self.client.post(self.url, {
+            't': self.fs.token,
+            's': 1,
+            'msg': 'xxx',
+        }, HTTP_X_REQUESTED_WITH='XMLHttpRequest')
+
+        assert FileShare.objects.all()[0].pass_verify()
+        # 1. sent to next reviser(admin@test.com), 2. sent to creator(test@test.com)
+        # 3. send to receiver(a@a.com), 4. sent to creator(test@test.com)
+        assert len(mail.outbox) == 4
+
+        assert mail.outbox[2].to[0] == 'a@a.com'
+        assert 'A file is shared to you on' in mail.outbox[2].subject

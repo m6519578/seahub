@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import datetime
 import logging
 
@@ -15,6 +16,8 @@ import posixpath
 from seahub.share.constants import STATUS_VERIFING, STATUS_PASS, STATUS_VETO
 from seahub.share.hashers import make_password, check_password, decode_password
 from seahub.share.settings import ENABLE_FILESHARE_CHECK
+from seahub.utils import send_html_email
+from seahub.settings import SITE_NAME
 ######################### End PingAn Group related ##########################
 
 # Get an instance of a logger
@@ -220,6 +223,22 @@ class FileShare(models.Model):
 
         return True if self.get_status() == STATUS_VETO else False
 
+    def get_pass_time(self):
+        if not self.pass_verify():
+            return ''
+
+        fs_verify = FileShareVerify.objects.get(share_link=self)
+
+        t1 = fs_verify.compliance_owner_vtime
+        if t1:
+            return t1.strftime('%Y-%m-%d %H:%M')
+        t2 = fs_verify.compliance_owner2_vtime
+        if t2:
+            return t2.strftime('%Y-%m-%d %H:%M')
+
+        logger.error('No compliance owner(s) vtime for share link: %s' % self.token)
+        return ''
+
     def get_status(self):
         if not ENABLE_FILESHARE_CHECK:
             return None
@@ -268,15 +287,23 @@ class FileShare(models.Model):
 
         if self.pass_verify():
             status_str += '<br><br>'
-            status_str += _('Link:') + ' ' + self.get_full_url()
+            extra_info = FileShareExtraInfo.objects.filter(share_link=self)
+            if len(extra_info) > 0:
+                sent_to_emails = ', '.join([x.sent_to for x in extra_info])
+                status_str += u'该文件下载链接已外发至邮件：' + sent_to_emails
+                status_str += u'（发送于' + self.get_pass_time() + u'）'
+                status_str += '<br><br>'
+
             if show_password is True:
-                status_str += '<br>'
                 status_str += _('Password:') + ' '
                 decoded_pwd = self.get_decoded_password(self.password)
                 if decoded_pwd:
                     status_str += '%s' % decoded_pwd
                 else:
                     status_str += _('Unsupported password format, please regenerate link if you want to show password.')
+                status_str += '<br><br>'
+
+            # status_str += u'<button id="re-send-btn">重发邮件</button>'
 
         return status_str
 
@@ -314,6 +341,26 @@ class FileShare(models.Model):
             ret = False
 
         return ret
+
+    def email_receivers(self, send_to=None):
+        if not send_to:
+            extra_info = FileShareExtraInfo.objects.filter(share_link=self)
+            if extra_info:
+                send_to = [x.sent_to for x in extra_info]
+
+        if not send_to:
+            return
+
+        for x in send_to:
+            c = {
+                'email': self.username,
+                'to_email': x,
+                'file_shared_link': self.get_full_url(),
+                'file_shared_name': self.get_name(),
+                'file_shared_type': _(u"file")
+            }
+            send_html_email(_(u'A file is shared to you on %s') % SITE_NAME,
+                            'shared_link_email.html', c, None, [x])
     #################### END PingAn Group related ######################
 
 
@@ -1129,13 +1176,11 @@ def file_updated_cb(sender, **kwargs):
 ########## Handle signals to add extra info when shared link created.
 @receiver(file_shared_link_created)
 def fs_created_cb(sender, **kwargs):
-    sent_emails = kwargs['sent_to']
-    note = kwargs['note']
+    l = [x.strip() for x in kwargs['sent_to'] if x.strip()]
+    sent_to = sorted(set(l), key=lambda x: l.index(x))
 
-    for e in sent_emails:
-        e = e.strip()
-        if not e:
-            continue
+    note = kwargs['note']
+    for e in sent_to:
         FileShareExtraInfo.objects.create(share_link=sender, sent_to=e,
                                           note=note)
 ######################## End PingAn Group related ##########################

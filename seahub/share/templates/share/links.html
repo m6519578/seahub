@@ -35,7 +35,7 @@
                 {% endif %}
                 <td><a href="{% url 'view_common_lib_dir' fs.repo.id '' %}">{{ fs.repo.name }}</a></td>
                 <td>
-                    <a href="#" class="stats" data-str="{{ fs.verbose_status_str_with_password }}">{{ fs.get_short_status_str }}</a>
+                    <a href="#" class="stats" data-token="{{fs.token}}">{{ fs.get_short_status_str }}</a>
                     {% if fs.need_remind %}<button class="js-remind" data-token="{{fs.token}}">{% trans "remind" %}</button>{% endif %}
                 </td>
                 <td>{{ fs.view_cnt }}</td>
@@ -45,7 +45,6 @@
                 <td>--</td>
                 {% endif %}
                 <td>
-                    <a href="#" class="sf2-icon-link view-link op-icon vh" data-link="{% if fs.pass_verify %}{{ fs.shared_link }}{% else %}{{ fs.get_status_str }}{% endif %}" title="{% trans "View"%}"></a>
                     <a href="#" class="sf2-icon-delete rm-link op-icon vh" data-token="{{ fs.token }}" title="{% trans "Remove"%}"></a>
                 </td>
             </tr>
@@ -99,7 +98,9 @@
     </div>
 </div>
 <input type="text" readonly="readonly" value="" id="shared-link" class="hide" />
-<div id="shared-link-stats" class="hide"></div>
+<div id="shared-link-stats" class="hide">
+    <span class="loading-icon loading-tip"></span>
+</div>
 {% endblock %}
 
 {% block extra_script %}{{block.super}}
@@ -143,15 +144,73 @@ $('#shared-link').click(function() {
 
 {% comment "Start PingAn Group related" %}{% endcomment %}
 $('.stats').click(function() {
-    var ul = '<ul>';
-    $.each($(this).attr('data-str').split(';'), function(idx, val) {
-        ul = ul + '<li>' + val + '</li>';
+    var $container = $('#shared-link-stats');
+    var token = $(this).attr('data-token');
+
+    $container.css({'width':600, 'height':300, 'overflow':'auto'}).modal();
+
+    $.ajax({
+        url: '{% url "ajax_get_link_status" %}',
+        data: {'token': token},
+        cache: false,
+        dataType: 'json',
+        success: function(data) {
+            var str = '';
+            for (var i = 0, len = data.status.length; i < len; i++) {
+                str += '<li>' + HTMLescape(data.status[i]) + '</li>';
+            }
+            $container.html('<ul>' + str + '</ul>');
+
+            if (data.pass_verify) {
+                str = '<p>该文件下载链接已通过 ' + '{{email_host_user|escapejs}}' + '外发至邮箱: ' + HTMLescape(data.receivers.join(', ')) + ' (发送于' + data.sent_at + ')</p>';
+                str += '<p>密码： ' + data.password + '</p>';
+                str += '<button id="re-send-link" style="margin-right:10px;">重新发送</button><span class="loading-icon vam" style="display:none;"></span><span id="re-send-link-result" class="hide"></span>';
+
+                $container.append(str);
+
+                $('#re-send-link').click(function() {
+                    var $btn = $(this);
+                    var $loadingIcon = $btn.next('.loading-icon').show();
+                    var $result = $('#re-send-link-result').hide();
+
+                    disable($btn);
+                    $.ajax({
+                        url: '{% url "ajax_email_link_receivers" %}',
+                        data: {'token': token},
+                        cache: false,
+                        dataType: 'json',
+                        success: function(data) {
+                            $result.html('发送成功').addClass('success').show();
+                        },
+                        error: function(xhr) {
+                            var msg;
+                            try {
+                                msg = $.parseJSON(xhr.responseText).error;
+                            }
+                            catch(e) {
+                                msg = '发送失败';
+                            }
+                            $result.html(msg).addClass('error').show();
+                        },
+                        complete: function() {
+                            $loadingIcon.hide();
+                            enable($btn);
+                        }
+                    });
+                });
+            }
+        },
+        error: function(xhr) {
+            var msg;
+            if (xhr.responseText) {
+                msg = $.parseJSON(xhr.responseText).error;
+            } else {
+                msg = "{% trans "Failed. Please check the network." %}";
+            }
+            $container.html('<p class="error">' + msg + '</p>');
+        }
     });
 
-    ul = ul + '</ul>';
-
-    $('#shared-link-stats').html(ul).css('width', '600px')
-           .css('height', '250px').modal();
     return false;
 });
 

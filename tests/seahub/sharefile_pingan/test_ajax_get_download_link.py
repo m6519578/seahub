@@ -33,7 +33,7 @@ class AJAXGetDownloadLinkTest(BaseTestCase):
             'use_passwd': '1',
             'passwd': '12345678',
             'expire_days': 3,
-            'sent_to': 'a@a.com',
+            'sent_to': 'a@a.com, b@b.com, a@a.com',
             'note': 'xxx',
         }
         resp = self.client.post(self.url, data, HTTP_X_REQUESTED_WITH='XMLHttpRequest')
@@ -42,11 +42,9 @@ class AJAXGetDownloadLinkTest(BaseTestCase):
         assert json_resp['token'] == ''
         assert len(FileShare.objects.all()) == 1
         assert len(FileShareVerify.objects.all()) == 1
-        assert len(FileShareExtraInfo.objects.all()) == 1
-
-        info = FileShareExtraInfo.objects.all()[0]
-        assert info.sent_to == 'a@a.com'
-        assert info.note == 'xxx'
+        assert len(FileShareExtraInfo.objects.all()) == 2
+        assert FileShareExtraInfo.objects.all()[0].sent_to == 'a@a.com'
+        assert FileShareExtraInfo.objects.all()[1].sent_to == 'b@b.com'
 
     def test_can_list(self):
         """List a download link for a file.

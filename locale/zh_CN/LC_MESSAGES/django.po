@@ -3040,7 +3040,7 @@ msgstr "二级机构分管总／总部分管总 (%(name)s %(email)s)"
 #: seahub/share/models.py:670
 #, python-format
 msgid "compliance owner (%(name)s %(email)s)"
-msgstr "二级机构法律合规负责人／总部法律合规部负责人 (%(name)s %(email)s)"
+msgstr "二级机构信息安全负责人／总部信息安全部负责人 (%(name)s %(email)s)"
 
 #: seahub/share/share_link_checking.py:91
 msgid "Please verify new share link."

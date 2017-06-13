@@ -40,7 +40,7 @@ from seahub.settings import SITE_ROOT, REPLACE_FROM_EMAIL, ADD_REPLY_TO_HEADER
 from seahub.profile.models import Profile
 
 ######################### Start PingAn Group related ########################
-from seahub.share.models import FileShareReceiver
+from seahub.share.models import FileShareReceiver, FileShareExtraInfo
 from seahub.share.settings import ENABLE_FILESHARE_CHECK
 from seahub.share.signals import file_shared_link_created
 from seahub.settings import SHARE_ACCESS_EXPIRATION
@@ -1130,6 +1130,13 @@ def ajax_get_download_link(request):
                 data['token'] = token
                 data['is_expired'] = l[0].is_expired()
                 data['password'] = str(l[0].get_decoded_password_str())
+                data['pass_time'] = l[0].get_pass_time()
+                extra_info = FileShareExtraInfo.objects.filter(share_link=l[0])
+                if len(extra_info) > 0:
+                    data['receivers'] = [x.sent_to for x in extra_info]
+                else:
+                    data['receivers'] = []
+
             else:
                 fs_status = l[0].get_status()
                 if fs_status is not None:
@@ -1186,12 +1193,19 @@ def ajax_get_download_link(request):
         else:
             expire_date = timezone.now() + relativedelta(days=expire_days)
 
-        sent_to = request.POST.get('sent_to', '')
-        sent_emails = sent_to.split(',')
+        sent_to = request.POST.get('sent_to', '').split(',')
+        sent_emails = [x.strip() for x in sent_to if x.strip()]
+
         if len(sent_emails) == 0:
             err = _("Please enter the recipient's email.")
             data = json.dumps({'error': err})
             return HttpResponse(data, status=400, content_type=content_type)
+
+        for e in sent_emails:
+            if not is_valid_email(e):
+                err = u"非法邮箱地址：%s" % e
+                data = json.dumps({'error': err})
+                return HttpResponse(data, status=400, content_type=content_type)
 
         note = request.POST.get('note', '')
 
