@@ -1271,11 +1271,16 @@ def ajax_get_download_link(request):
                                            'password': passwd,
                                        })
                     else:
+                        status_str = fs.get_status_str() + \
+                                     u'<a href="%s">查看详情。</a>' % reverse('list_shared_links')
+                        if fs.get_verbose_status() is None:
+                            status_str = _('No revisers found. Please contact system admin.')
+
                         data = json.dumps({'token': '',
                                            'download_link': '',
                                            'status': str(fs.get_status()),
-                                           'status_str': fs.get_status_str() +
-                                           u'<a href="%s">查看详情。</a>' % reverse('list_shared_links')})
+                                           'status_str': status_str,
+                                           })
 
                     return HttpResponse(data, status=200, content_type=content_type)
 ######################### End PingAn Group related ##########################
