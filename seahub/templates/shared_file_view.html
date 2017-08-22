@@ -218,7 +218,7 @@ $(function() {
             },
             success: function() {
                 $.modal.close();
-                feedback('success', 'success');
+                feedback('审核完成。', 'success');
                 if (pass) {
                     show_pass();
                 } else {
@@ -226,7 +226,7 @@ $(function() {
                 }
             },
             error: function() {
-                $error.html('出错了，请稍后再试。').show();
+                $error.html('出错了，请刷新页面或稍后再试。').show();
             }
         });
 

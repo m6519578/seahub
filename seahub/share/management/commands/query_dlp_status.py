@@ -11,12 +11,12 @@ from django.utils.translation import ugettext as _
 from seaserv import seafile_api
 
 from seahub.profile.models import Profile
-from seahub.share.models import FileShareVerify
+from seahub.share.models import FileShareApprovalStatus
 from seahub.share.constants import STATUS_VERIFING, STATUS_PASS, STATUS_VETO
 from seahub.share.signals import file_shared_link_verify
 from seahub.share.settings import DLP_SCAN_POINT, SHARE_LINK_BACKUP_LIBRARY
 from seahub.share.share_link_checking import (
-    email_reviser, email_verify_result, get_reviser_info_by_user)
+    email_reviser, email_verify_result)
 from seahub.utils import get_service_url, send_html_email
 
 # Get an instance of a logger
@@ -28,9 +28,9 @@ class Command(BaseCommand):
     def handle(self, *args, **kwargs):
         query_list = []
 
-        fs_verifies = FileShareVerify.objects.all()
+        fs_verifies = FileShareApprovalStatus.objects.get_dlp_status()
         for fs_verify in fs_verifies:
-            if fs_verify.DLP_status != STATUS_VERIFING:
+            if fs_verify.status != STATUS_VERIFING:
                 continue
 
             repo_id = fs_verify.share_link.repo_id
@@ -77,14 +77,14 @@ class Command(BaseCommand):
             else:
                 if status == 1:
                     # set dlp status to pass
-                    e[1].DLP_status = STATUS_PASS
+                    e[1].status = STATUS_PASS
                     print '%s pass dlp test' % e[0]
                 else:
                     # set dlp status to veto
-                    e[1].DLP_status = STATUS_VETO
+                    e[1].status = STATUS_VETO
                     print '%s failed to pass dlp test' % e[0]
 
-                e[1].DLP_vtime = datetime.now()
+                e[1].vtime = datetime.now()
                 e[1].save()
 
                 # remove symbol link
@@ -139,27 +139,36 @@ class Command(BaseCommand):
             logger.error('Failed to backup, %s' % e)
 
     def email_revisers(self, fileshare):
-        info = get_reviser_info_by_user(fileshare.username)
-        if info is None:
+        chain = fileshare.get_approval_chain()
+        if len(chain) == 0:
             logger.error('Failed to send email, no reviser info found for user: %s' % fileshare.username)
             return
 
-        email = info.line_manager_email
+        ele = chain[0]
+        if isinstance(ele, basestring):
+            emails = [ele]
+        else:
+            emails = ele[1:]
 
-        # send notice first
-        file_shared_link_verify.send(sender=None,
-                                     from_user=fileshare.username,
-                                     to_user=email,
-                                     token=fileshare.token)
+        for email in emails:
+            # add default approval status
+            FileShareApprovalStatus.objects.set_status(
+                fileshare, status=STATUS_VERIFING, username=email)
 
-        # save current language
-        cur_language = translation.get_language()
+            # send notice first
+            file_shared_link_verify.send(sender=None,
+                                         from_user=fileshare.username,
+                                         to_user=email,
+                                         token=fileshare.token)
 
-        # get and active user language
-        user_language = self.get_user_language(email)
-        translation.activate(user_language)
+            # save current language
+            cur_language = translation.get_language()
 
-        email_reviser(fileshare, email)
+            # get and active user language
+            user_language = self.get_user_language(email)
+            translation.activate(user_language)
 
-        # restore current language
-        translation.activate(cur_language)
+            email_reviser(fileshare, email)
+
+            # restore current language
+            translation.activate(cur_language)

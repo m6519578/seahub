@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+from collections import namedtuple
 import datetime
 import logging
 
@@ -13,6 +14,8 @@ from seahub.utils import normalize_file_path, normalize_dir_path, gen_token,\
 ######################### Start PingAn Group related ########################
 import os
 import posixpath
+from seahub.base.templatetags.seahub_tags import email2nickname
+from seahub.profile.models import DetailedProfile
 from seahub.share.constants import STATUS_VERIFING, STATUS_PASS, STATUS_VETO
 from seahub.share.hashers import make_password, check_password, decode_password
 from seahub.share.settings import ENABLE_FILESHARE_CHECK
@@ -205,6 +208,33 @@ class FileShare(models.Model):
         return os.path.basename(self.path)
 
     ######################### Start PingAn Group related ##################
+    def get_approval_chain(self, flat=False):
+        username = self.username
+
+        # 1. get from user reviser map
+        r_map = FileShareReviserMap.objects.filter(username=username)
+        if len(r_map) > 0:
+            return [r_map[0].reviser_email]
+
+        # 2. get chain by share link
+        ret = FileShareApprovalChain.objects.get_by_share_link(self, flat=flat)
+        if ret:
+            return ret
+
+        # 3. get chain by share link user department
+        d_profile = DetailedProfile.objects.get_detailed_profile_by_user(
+            username)
+        if not d_profile:
+            logger.error('No detailed profile(department, ... etc) found for user %s' % username)
+            return []
+
+        chain_list = ApprovalChain.objects.get_by_department(
+            d_profile.department, flat=flat)
+        if len(chain_list) == 0:
+            logger.error('Approval chain is empty for user: %s' % username)
+
+        return chain_list
+
     def pass_verify(self):
         if not ENABLE_FILESHARE_CHECK:
             return True
@@ -227,23 +257,27 @@ class FileShare(models.Model):
         if not self.pass_verify():
             return ''
 
-        fs_verify = FileShareVerify.objects.get(share_link=self)
+        chain_status = FileShareApprovalStatus.objects.\
+                       get_chain_status_by_share_link(share_link=self)
+        if not chain_status:
+            return ''
 
-        t1 = fs_verify.compliance_owner_vtime
-        if t1:
-            return t1.strftime('%Y-%m-%d %H:%M')
-        t2 = fs_verify.compliance_owner2_vtime
-        if t2:
-            return t2.strftime('%Y-%m-%d %H:%M')
+        target = chain_status[-1]  # look up pass time at last step
+        if not get_chain_step_sibling_type(target):
+            target_time = target.vtime
+        else:
+            for ele in target[1:]:
+                if ele.vtime:
+                    target_time = ele.vtime
+                    break
 
-        logger.error('No compliance owner(s) vtime for share link: %s' % self.token)
-        return ''
+        return target_time.strftime('%Y-%m-%d %H:%M') if target_time else ''
 
     def get_status(self):
         if not ENABLE_FILESHARE_CHECK:
             return None
 
-        return FileShareVerify.objects.get_status(self)
+        return FileShareApprovalStatus.objects.get_status(self)
 
     def get_short_status_str(self):
         if not ENABLE_FILESHARE_CHECK:
@@ -272,12 +306,12 @@ class FileShare(models.Model):
     def get_verbose_status(self):
         if not ENABLE_FILESHARE_CHECK:
             return None
-        return FileShareVerify.objects.get_verbose_status(self)
+        return FileShareApprovalStatus.objects.get_verbose_status(self)
 
     def get_verbose_status_str(self, show_password=False):
         rst = []
         v_stats = self.get_verbose_status()
-        if v_stats is None:
+        if not v_stats:
             return _('No revisers found. Please contact system admin.')
 
         for s, v in v_stats:
@@ -321,26 +355,22 @@ class FileShare(models.Model):
             return _('Unsupported password format, please regenerate link if you want to show password.')
 
     def need_remind(self):
-        """Return `True` if department head or revisers are verifying and need
-        to be remind.
+        """Return `True` if DLP finished revise, while other people still in progress.
+
         """
-        fs_verify = FileShareVerify.objects.get(share_link=self)
+        chain_status = FileShareApprovalStatus.objects.\
+                       get_chain_status_by_share_link(share_link=self)
+        if not chain_status:
+            return False
 
-        ret = True
-        if fs_verify.line_manager_pass() and \
-           fs_verify.department_head_pass() and \
-           fs_verify.comanager_head_pass() and \
-           (fs_verify.compliance_owner_pass() or fs_verify.compliance_owner2_pass()):
-            ret = False
+        dlp_status = chain_status[0]
+        if dlp_status.status == STATUS_VERIFING:
+            return False        # no need to remind people if DLP is verifing
 
-        if fs_verify.dlp_verifying() or fs_verify.line_manager_veto() or \
-           fs_verify.department_head_veto() or \
-           fs_verify.comanager_head_veto() or \
-           fs_verify.compliance_owner_veto() or \
-           fs_verify.compliance_owner2_veto():
-            ret = False
-
-        return ret
+        if self.get_status() == STATUS_VERIFING:
+            return True
+        else:
+            return False
 
     def email_receivers(self, send_to=None):
         if not send_to:
@@ -564,288 +594,288 @@ def remove_share_links(sender, **kwargs):
 
 
 ######################### Start PingAn Group related ########################
-class FileShareVerifyManager(models.Manager):
-    def get_status(self, share_link):
-        """Return status of share link.
+# class FileShareVerifyManager(models.Manager):
+#     def get_status(self, share_link):
+#         """Return status of share link.
 
-        0: verifing
-        1: pass
-        2: veto
-        """
-        try:
-            fs_verify = self.get(share_link=share_link)
-        except FileShareVerify.DoesNotExist:
-            return STATUS_VERIFING
+#         0: verifing
+#         1: pass
+#         2: veto
+#         """
+#         try:
+#             fs_verify = self.get(share_link=share_link)
+#         except FileShareVerify.DoesNotExist:
+#             return STATUS_VERIFING
 
-        if fs_verify.line_manager_pass() and \
-           fs_verify.department_head_pass() and \
-           fs_verify.comanager_head_pass() and \
-           (fs_verify.compliance_owner_pass() or fs_verify.compliance_owner2_pass()):
+#         if fs_verify.line_manager_pass() and \
+#            fs_verify.department_head_pass() and \
+#            fs_verify.comanager_head_pass() and \
+#            (fs_verify.compliance_owner_pass() or fs_verify.compliance_owner2_pass()):
 
-            return STATUS_PASS
+#             return STATUS_PASS
 
-        if fs_verify.line_manager_veto() or \
-           fs_verify.department_head_veto() or \
-           fs_verify.comanager_head_veto() or \
-           fs_verify.compliance_owner_veto() or \
-           fs_verify.compliance_owner2_veto():
-            return STATUS_VETO
+#         if fs_verify.line_manager_veto() or \
+#            fs_verify.department_head_veto() or \
+#            fs_verify.comanager_head_veto() or \
+#            fs_verify.compliance_owner_veto() or \
+#            fs_verify.compliance_owner2_veto():
+#             return STATUS_VETO
 
-        return STATUS_VERIFING
+#         return STATUS_VERIFING
 
-    def get_verbose_status(self, share_link):
-        """Return verbose status of share link.
+#     def get_verbose_status(self, share_link):
+#         """Return verbose status of share link.
 
-        e.g.
-        [(0, 'Awating DLP verifing'),
-        (0, 'Awaiting line manager verifing'),
-        (0, 'Awaiting department head verifing'),
-        (0, 'Awaiting comanager head verifing'),
-        [0, 'Awaiting compliance owner verifing]]
-        """
+#         e.g.
+#         [(0, 'Awating DLP verifing'),
+#         (0, 'Awaiting line manager verifing'),
+#         (0, 'Awaiting department head verifing'),
+#         (0, 'Awaiting comanager head verifing'),
+#         [0, 'Awaiting compliance owner verifing]]
+#         """
 
-        try:
-            fs_verify = self.get(share_link=share_link)
-        except FileShareVerify.DoesNotExist:
-            return None
+#         try:
+#             fs_verify = self.get(share_link=share_link)
+#         except FileShareVerify.DoesNotExist:
+#             return None
 
-        from seahub.share.share_link_checking import get_reviser_info_by_user
-        reviser_info = get_reviser_info_by_user(share_link.username)
-        if reviser_info is None:
-            return None
+#         from seahub.share.share_link_checking import get_reviser_info_by_user
+#         reviser_info = get_reviser_info_by_user(share_link.username)
+#         if reviser_info is None:
+#             return None
 
-        # genetate DLP status
-        if fs_verify.DLP_status == STATUS_VERIFING:
-            dlp_msg = _('Awaiting DLP verifing')
+#         # genetate DLP status
+#         if fs_verify.DLP_status == STATUS_VERIFING:
+#             dlp_msg = _('Awaiting DLP verifing')
 
-        elif fs_verify.DLP_status == STATUS_PASS:
+#         elif fs_verify.DLP_status == STATUS_PASS:
 
-            if fs_verify.DLP_vtime:
-                dlp_msg = _('DLP passed at %s') % fs_verify.DLP_vtime.strftime('%Y-%m-%d')
-            else:
-                dlp_msg = _('DLP passed')
+#             if fs_verify.DLP_vtime:
+#                 dlp_msg = _('DLP passed at %s') % fs_verify.DLP_vtime.strftime('%Y-%m-%d')
+#             else:
+#                 dlp_msg = _('DLP passed')
 
-        elif fs_verify.DLP_status == STATUS_VETO:
+#         elif fs_verify.DLP_status == STATUS_VETO:
 
-            if fs_verify.DLP_vtime:
-                dlp_msg = _('DLP veto at %s') % fs_verify.DLP_vtime.strftime('%Y-%m-%d')
-            else:
-                dlp_msg = _('DLP veto')
+#             if fs_verify.DLP_vtime:
+#                 dlp_msg = _('DLP veto at %s') % fs_verify.DLP_vtime.strftime('%Y-%m-%d')
+#             else:
+#                 dlp_msg = _('DLP veto')
 
-        # generate line manager status
-        line_manager_info = _('line manager (%(name)s %(email)s)') % {
-            'name': reviser_info.line_manager_name,
-            'email': reviser_info.line_manager_email
-        }
+#         # generate line manager status
+#         line_manager_info = _('line manager (%(name)s %(email)s)') % {
+#             'name': reviser_info.line_manager_name,
+#             'email': reviser_info.line_manager_email
+#         }
 
-        if fs_verify.line_manager_status == STATUS_VERIFING:
-            line_manager_msg = _('Awaiting %s verifing') % line_manager_info
+#         if fs_verify.line_manager_status == STATUS_VERIFING:
+#             line_manager_msg = _('Awaiting %s verifing') % line_manager_info
 
-        elif fs_verify.line_manager_status == STATUS_PASS:
+#         elif fs_verify.line_manager_status == STATUS_PASS:
 
-            if fs_verify.line_manager_vtime:
-                line_manager_msg = _('%(info)s passed at %(date)s') % {
-                    'info': line_manager_info,
-                    'date': fs_verify.line_manager_vtime.strftime('%Y-%m-%d')
-                }
-            else:
-                line_manager_msg = _('%s passed') % line_manager_info
+#             if fs_verify.line_manager_vtime:
+#                 line_manager_msg = _('%(info)s passed at %(date)s') % {
+#                     'info': line_manager_info,
+#                     'date': fs_verify.line_manager_vtime.strftime('%Y-%m-%d')
+#                 }
+#             else:
+#                 line_manager_msg = _('%s passed') % line_manager_info
 
-        elif fs_verify.line_manager_status == STATUS_VETO:
+#         elif fs_verify.line_manager_status == STATUS_VETO:
 
-            if fs_verify.line_manager_vtime:
-                line_manager_msg = _('%(info)s veto at %(date)s') % {
-                    'info': line_manager_info,
-                    'date': fs_verify.line_manager_vtime.strftime('%Y-%m-%d')
-                }
-            else:
-                line_manager_msg = _('%s veto') % line_manager_info
+#             if fs_verify.line_manager_vtime:
+#                 line_manager_msg = _('%(info)s veto at %(date)s') % {
+#                     'info': line_manager_info,
+#                     'date': fs_verify.line_manager_vtime.strftime('%Y-%m-%d')
+#                 }
+#             else:
+#                 line_manager_msg = _('%s veto') % line_manager_info
 
-        if fs_verify.line_manager_msg is not None:
-            line_manager_msg += ' (' + fs_verify.line_manager_msg + ')'
+#         if fs_verify.line_manager_msg is not None:
+#             line_manager_msg += ' (' + fs_verify.line_manager_msg + ')'
 
-        # generate department head status
-        department_head_info = _('department head (%(name)s %(email)s)') % {
-            'name': reviser_info.department_head_name,
-            'email': reviser_info.department_head_email
-        }
+#             # generate department head status
+#         department_head_info = _('department head (%(name)s %(email)s)') % {
+#             'name': reviser_info.department_head_name,
+#             'email': reviser_info.department_head_email
+#         }
 
-        if fs_verify.department_head_status == STATUS_VERIFING:
-            dept_head_msg = _('Awaiting %s verifing') % department_head_info
+#         if fs_verify.department_head_status == STATUS_VERIFING:
+#             dept_head_msg = _('Awaiting %s verifing') % department_head_info
 
-        elif fs_verify.department_head_status == STATUS_PASS:
+#         elif fs_verify.department_head_status == STATUS_PASS:
 
-            if fs_verify.department_head_vtime:
-                dept_head_msg = _('%(info)s passed at %(date)s') % {
-                    'info': department_head_info,
-                    'date': fs_verify.department_head_vtime.strftime('%Y-%m-%d')
-                }
-            else:
-                dept_head_msg = _('%s passed') % department_head_info
+#             if fs_verify.department_head_vtime:
+#                 dept_head_msg = _('%(info)s passed at %(date)s') % {
+#                     'info': department_head_info,
+#                     'date': fs_verify.department_head_vtime.strftime('%Y-%m-%d')
+#                 }
+#             else:
+#                 dept_head_msg = _('%s passed') % department_head_info
 
-        elif fs_verify.department_head_status == STATUS_VETO:
+#         elif fs_verify.department_head_status == STATUS_VETO:
 
-            if fs_verify.department_head_vtime:
-                dept_head_msg = _('%(info)s veto at %(date)s') % {
-                    'info': department_head_info,
-                    'date': fs_verify.department_head_vtime.strftime('%Y-%m-%d')
-                }
-            else:
-                dept_head_msg = _('%s veto') % department_head_info
+#             if fs_verify.department_head_vtime:
+#                 dept_head_msg = _('%(info)s veto at %(date)s') % {
+#                     'info': department_head_info,
+#                     'date': fs_verify.department_head_vtime.strftime('%Y-%m-%d')
+#                 }
+#             else:
+#                 dept_head_msg = _('%s veto') % department_head_info
 
-        if fs_verify.department_head_msg is not None:
-            dept_head_msg += ' (' + fs_verify.department_head_msg + ')'
+#         if fs_verify.department_head_msg is not None:
+#             dept_head_msg += ' (' + fs_verify.department_head_msg + ')'
 
-        # generate comanager head status
-        comanager_head_info = _('comanager head (%(name)s %(email)s)') % {
-            'name': reviser_info.comanager_head_name,
-            'email': reviser_info.comanager_head_email
-        }
+#         # generate comanager head status
+#         comanager_head_info = _('comanager head (%(name)s %(email)s)') % {
+#             'name': reviser_info.comanager_head_name,
+#             'email': reviser_info.comanager_head_email
+#         }
 
-        if fs_verify.comanager_head_status == STATUS_VERIFING:
-            comanager_head_msg = _('Awaiting %s verifing') % comanager_head_info
+#         if fs_verify.comanager_head_status == STATUS_VERIFING:
+#             comanager_head_msg = _('Awaiting %s verifing') % comanager_head_info
 
-        elif fs_verify.comanager_head_status == STATUS_PASS:
+#         elif fs_verify.comanager_head_status == STATUS_PASS:
 
-            if fs_verify.comanager_head_vtime:
-                comanager_head_msg = _('%(info)s passed at %(date)s') % {
-                    'info': comanager_head_info,
-                    'date': fs_verify.comanager_head_vtime.strftime('%Y-%m-%d')
-                }
-            else:
-                comanager_head_msg = _('%s passed') % comanager_head_info
+#             if fs_verify.comanager_head_vtime:
+#                 comanager_head_msg = _('%(info)s passed at %(date)s') % {
+#                     'info': comanager_head_info,
+#                     'date': fs_verify.comanager_head_vtime.strftime('%Y-%m-%d')
+#                 }
+#             else:
+#                 comanager_head_msg = _('%s passed') % comanager_head_info
 
-        elif fs_verify.comanager_head_status == STATUS_VETO:
+#         elif fs_verify.comanager_head_status == STATUS_VETO:
 
-            if fs_verify.comanager_head_vtime:
-                comanager_head_msg = _('%(info)s veto at %(date)s') % {
-                    'info': comanager_head_info,
-                    'date': fs_verify.comanager_head_vtime.strftime('%Y-%m-%d')
-                }
-            else:
-                comanager_head_msg = _('%s veto') % comanager_head_info
+#             if fs_verify.comanager_head_vtime:
+#                 comanager_head_msg = _('%(info)s veto at %(date)s') % {
+#                     'info': comanager_head_info,
+#                     'date': fs_verify.comanager_head_vtime.strftime('%Y-%m-%d')
+#                 }
+#             else:
+#                 comanager_head_msg = _('%s veto') % comanager_head_info
 
-        if fs_verify.comanager_head_msg is not None:
-            comanager_head_msg += ' (' + fs_verify.comanager_head_msg + ')'
+#         if fs_verify.comanager_head_msg is not None:
+#             comanager_head_msg += ' (' + fs_verify.comanager_head_msg + ')'
 
-        # generate compliance owner status
-        compliance_owner_info = _('compliance owner (%(name)s %(email)s)') % {
-            'name': reviser_info.compliance_owner_name,
-            'email': reviser_info.compliance_owner_email
-        }
+#         # generate compliance owner status
+#         compliance_owner_info = _('compliance owner (%(name)s %(email)s)') % {
+#             'name': reviser_info.compliance_owner_name,
+#             'email': reviser_info.compliance_owner_email
+#         }
 
-        if fs_verify.compliance_owner_status == STATUS_VERIFING:
-            compliance_owner_msg = _('Awaiting %s verifing') % compliance_owner_info
+#         if fs_verify.compliance_owner_status == STATUS_VERIFING:
+#             compliance_owner_msg = _('Awaiting %s verifing') % compliance_owner_info
 
-        elif fs_verify.compliance_owner_status == STATUS_PASS:
+#         elif fs_verify.compliance_owner_status == STATUS_PASS:
 
-            if fs_verify.compliance_owner_vtime:
-                compliance_owner_msg = _('%(info)s passed at %(date)s') % {
-                    'info': compliance_owner_info,
-                    'date': fs_verify.compliance_owner_vtime.strftime('%Y-%m-%d')
-                }
-            else:
-                compliance_owner_msg = _('%s passed') % compliance_owner_info
+#             if fs_verify.compliance_owner_vtime:
+#                 compliance_owner_msg = _('%(info)s passed at %(date)s') % {
+#                     'info': compliance_owner_info,
+#                     'date': fs_verify.compliance_owner_vtime.strftime('%Y-%m-%d')
+#                 }
+#             else:
+#                 compliance_owner_msg = _('%s passed') % compliance_owner_info
 
-        elif fs_verify.compliance_owner_status == STATUS_VETO:
+#         elif fs_verify.compliance_owner_status == STATUS_VETO:
 
-            if fs_verify.compliance_owner_vtime:
-                compliance_owner_msg = _('%(info)s veto at %(date)s') % {
-                    'info': compliance_owner_info,
-                    'date': fs_verify.compliance_owner_vtime.strftime('%Y-%m-%d')
-                }
-            else:
-                compliance_owner_msg = _('%s veto') % compliance_owner_info
+#             if fs_verify.compliance_owner_vtime:
+#                 compliance_owner_msg = _('%(info)s veto at %(date)s') % {
+#                     'info': compliance_owner_info,
+#                     'date': fs_verify.compliance_owner_vtime.strftime('%Y-%m-%d')
+#                 }
+#             else:
+#                 compliance_owner_msg = _('%s veto') % compliance_owner_info
 
-        if fs_verify.compliance_owner_msg is not None:
-            compliance_owner_msg += ' (' + fs_verify.compliance_owner_msg + ')'
+#         if fs_verify.compliance_owner_msg is not None:
+#             compliance_owner_msg += ' (' + fs_verify.compliance_owner_msg + ')'
 
-        ret = [(fs_verify.DLP_status, dlp_msg),
-                (fs_verify.line_manager_status, line_manager_msg),
-                (fs_verify.department_head_status, dept_head_msg),
-                (fs_verify.comanager_head_status, comanager_head_msg),
-                (fs_verify.compliance_owner_status, compliance_owner_msg)]
+#         ret = [(fs_verify.DLP_status, dlp_msg),
+#                 (fs_verify.line_manager_status, line_manager_msg),
+#                 (fs_verify.department_head_status, dept_head_msg),
+#                 (fs_verify.comanager_head_status, comanager_head_msg),
+#                 (fs_verify.compliance_owner_status, compliance_owner_msg)]
 
-        if not reviser_info.compliance_owner2_email:
-            return ret
+#         if not reviser_info.compliance_owner2_email:
+#             return ret
 
-        # generate compliance owner2 status
-        compliance_owner2_info = _('compliance owner (%(name)s %(email)s)') % {
-            'name': reviser_info.compliance_owner2_name,
-            'email': reviser_info.compliance_owner2_email
-        }
+#         # generate compliance owner2 status
+#         compliance_owner2_info = _('compliance owner (%(name)s %(email)s)') % {
+#             'name': reviser_info.compliance_owner2_name,
+#             'email': reviser_info.compliance_owner2_email
+#         }
 
-        if fs_verify.compliance_owner2_status == STATUS_VERIFING:
-            compliance_owner2_msg = _('Awaiting %s verifing') % compliance_owner2_info
+#         if fs_verify.compliance_owner2_status == STATUS_VERIFING:
+#             compliance_owner2_msg = _('Awaiting %s verifing') % compliance_owner2_info
 
-        elif fs_verify.compliance_owner2_status == STATUS_PASS:
+#         elif fs_verify.compliance_owner2_status == STATUS_PASS:
 
-            if fs_verify.compliance_owner2_vtime:
-                compliance_owner2_msg = _('%(info)s passed at %(date)s') % {
-                    'info': compliance_owner2_info,
-                    'date': fs_verify.compliance_owner2_vtime.strftime('%Y-%m-%d')
-                }
-            else:
-                compliance_owner2_msg = _('%s passed') % compliance_owner2_info
+#             if fs_verify.compliance_owner2_vtime:
+#                 compliance_owner2_msg = _('%(info)s passed at %(date)s') % {
+#                     'info': compliance_owner2_info,
+#                     'date': fs_verify.compliance_owner2_vtime.strftime('%Y-%m-%d')
+#                 }
+#             else:
+#                 compliance_owner2_msg = _('%s passed') % compliance_owner2_info
 
-        elif fs_verify.compliance_owner2_status == STATUS_VETO:
+#         elif fs_verify.compliance_owner2_status == STATUS_VETO:
 
-            if fs_verify.compliance_owner2_vtime:
-                compliance_owner2_msg = _('%(info)s veto at %(date)s') % {
-                    'info': compliance_owner2_info,
-                    'date': fs_verify.compliance_owner2_vtime.strftime('%Y-%m-%d')
-                }
-            else:
-                compliance_owner2_msg = _('%s veto') % compliance_owner2_info
+#             if fs_verify.compliance_owner2_vtime:
+#                 compliance_owner2_msg = _('%(info)s veto at %(date)s') % {
+#                     'info': compliance_owner2_info,
+#                     'date': fs_verify.compliance_owner2_vtime.strftime('%Y-%m-%d')
+#                 }
+#             else:
+#                 compliance_owner2_msg = _('%s veto') % compliance_owner2_info
 
-        if fs_verify.compliance_owner2_msg is not None:
-            compliance_owner2_msg += ' (' + fs_verify.compliance_owner2_msg + ')'
+#         if fs_verify.compliance_owner2_msg is not None:
+#             compliance_owner2_msg += ' (' + fs_verify.compliance_owner2_msg + ')'
 
-        ret.append((fs_verify.compliance_owner2_status, compliance_owner2_msg))
-        return ret
+#         ret.append((fs_verify.compliance_owner2_status, compliance_owner2_msg))
+#         return ret
 
-    def set_status(self, share_link, status, username, msg=None):
-        """Set status depending the type of user.
-        """
-        m = self.get(share_link=share_link)
+#     def set_status(self, share_link, status, username, msg=None):
+#         """Set status depending the type of user.
+#         """
+#         m = self.get(share_link=share_link)
 
-        from seahub.share.share_link_checking import get_reviser_info_by_user
-        reviser_info = get_reviser_info_by_user(share_link.username)
-        if reviser_info is None:
-            return m
+#         from seahub.share.share_link_checking import get_reviser_info_by_user
+#         reviser_info = get_reviser_info_by_user(share_link.username)
+#         if reviser_info is None:
+#             return m
 
-        if username == reviser_info.line_manager_email:
-            m.line_manager_status = status
-            m.line_manager_vtime = datetime.datetime.now()
-            if msg is not None:
-                m.line_manager_msg = msg
+#         if username == reviser_info.line_manager_email:
+#             m.line_manager_status = status
+#             m.line_manager_vtime = datetime.datetime.now()
+#             if msg is not None:
+#                 m.line_manager_msg = msg
 
-        if username == reviser_info.department_head_email:
-            m.department_head_status = status
-            m.department_head_vtime = datetime.datetime.now()
-            if msg is not None:
-                m.department_head_msg = msg
+#         if username == reviser_info.department_head_email:
+#             m.department_head_status = status
+#             m.department_head_vtime = datetime.datetime.now()
+#             if msg is not None:
+#                 m.department_head_msg = msg
 
-        if username == reviser_info.comanager_head_email:
-            m.comanager_head_status = status
-            m.comanager_head_vtime = datetime.datetime.now()
-            if msg is not None:
-                m.comanager_head_msg = msg
+#         if username == reviser_info.comanager_head_email:
+#             m.comanager_head_status = status
+#             m.comanager_head_vtime = datetime.datetime.now()
+#             if msg is not None:
+#                 m.comanager_head_msg = msg
 
-        if username == reviser_info.compliance_owner_email:
-            m.compliance_owner_status = status
-            m.compliance_owner_vtime = datetime.datetime.now()
-            if msg is not None:
-                m.compliance_owner_msg = msg
+#         if username == reviser_info.compliance_owner_email:
+#             m.compliance_owner_status = status
+#             m.compliance_owner_vtime = datetime.datetime.now()
+#             if msg is not None:
+#                 m.compliance_owner_msg = msg
 
-        if username == reviser_info.compliance_owner2_email:
-            m.compliance_owner2_status = status
-            m.compliance_owner2_vtime = datetime.datetime.now()
-            if msg is not None:
-                m.compliance_owner2_msg = msg
+#         if username == reviser_info.compliance_owner2_email:
+#             m.compliance_owner2_status = status
+#             m.compliance_owner2_vtime = datetime.datetime.now()
+#             if msg is not None:
+#                 m.compliance_owner2_msg = msg
 
-        m.save()
-        return m
+#         m.save()
+#         return m
 
 class FileShareVerify(models.Model):
     STATUS_CHOICES = (
@@ -880,7 +910,7 @@ class FileShareVerify(models.Model):
     compliance_owner2_vtime = models.DateTimeField(blank=True, null=True)
     compliance_owner2_msg = models.TextField(blank=True, null=True)
 
-    objects = FileShareVerifyManager()
+    # objects = FileShareVerifyManager()
 
     def dlp_pass(self):
         return True if self.DLP_status == STATUS_PASS else False
@@ -925,52 +955,52 @@ class FileShareVerify(models.Model):
         return True if self.compliance_owner2_status == STATUS_VERIFING else False
 
 
-class FileShareReviserInfoManager(models.Manager):
-    def add_file_share_reviser(
-            self, department_name, department_head_name,
-            department_head_account, department_head_email, comanager_head_name,
-            comanager_head_account, comanager_head_email, reviser1_name,
-            reviser1_account, reviser1_email, reviser2_name, reviser2_account,
-            reviser2_email):
+# class FileShareReviserInfoManager(models.Manager):
+#     def add_file_share_reviser(
+#             self, department_name, department_head_name,
+#             department_head_account, department_head_email, comanager_head_name,
+#             comanager_head_account, comanager_head_email, reviser1_name,
+#             reviser1_account, reviser1_email, reviser2_name, reviser2_account,
+#             reviser2_email):
 
-        reviser = self.model(department_name=department_name,
-                             department_head_name=department_head_name,
-                             department_head_account=department_head_account,
-                             department_head_email=department_head_email,
-                             comanager_head_name=comanager_head_name,
-                             comanager_head_account=comanager_head_account,
-                             comanager_head_email=comanager_head_email,
-                             reviser1_name=reviser1_name,
-                             reviser1_account=reviser1_account,
-                             reviser1_email=reviser1_email,
-                             reviser2_name=reviser2_name,
-                             reviser2_account=reviser2_account,
-                             reviser2_email=reviser2_email)
+#         reviser = self.model(department_name=department_name,
+#                              department_head_name=department_head_name,
+#                              department_head_account=department_head_account,
+#                              department_head_email=department_head_email,
+#                              comanager_head_name=comanager_head_name,
+#                              comanager_head_account=comanager_head_account,
+#                              comanager_head_email=comanager_head_email,
+#                              reviser1_name=reviser1_name,
+#                              reviser1_account=reviser1_account,
+#                              reviser1_email=reviser1_email,
+#                              reviser2_name=reviser2_name,
+#                              reviser2_account=reviser2_account,
+#                              reviser2_email=reviser2_email)
 
-        reviser.save(using=self._db)
+#         reviser.save(using=self._db)
 
-        return reviser
+#         return reviser
 
 
-class FileShareReviserInfo(models.Model):
-    department_name = models.CharField(max_length=200, db_index=True)
-    department_head_name = models.CharField(max_length=1024)
-    department_head_account = models.CharField(max_length=1024)
-    department_head_email = models.EmailField()
-    comanager_head_name = models.CharField(max_length=1024)
-    comanager_head_account = models.CharField(max_length=1024)
-    comanager_head_email = models.EmailField()
-    reviser1_name = models.CharField(max_length=1024)
-    reviser1_account = models.CharField(max_length=1024)
-    reviser1_email = models.EmailField()
-    reviser2_name = models.CharField(max_length=1024)
-    reviser2_account = models.CharField(max_length=1024)
-    reviser2_email = models.EmailField()
+# class FileShareReviserInfo(models.Model):
+#     department_name = models.CharField(max_length=200, db_index=True)
+#     department_head_name = models.CharField(max_length=1024)
+#     department_head_account = models.CharField(max_length=1024)
+#     department_head_email = models.EmailField()
+#     comanager_head_name = models.CharField(max_length=1024)
+#     comanager_head_account = models.CharField(max_length=1024)
+#     comanager_head_email = models.EmailField()
+#     reviser1_name = models.CharField(max_length=1024)
+#     reviser1_account = models.CharField(max_length=1024)
+#     reviser1_email = models.EmailField()
+#     reviser2_name = models.CharField(max_length=1024)
+#     reviser2_account = models.CharField(max_length=1024)
+#     reviser2_email = models.EmailField()
 
-    objects = FileShareReviserInfoManager()
+#     objects = FileShareReviserInfoManager()
 
-    def __unicode__(self):
-        return '%s <--> %s %s %s' % (self.department_name, self.department_head_email, self.reviser1_email, self.reviser2_email)
+#     def __unicode__(self):
+#         return '%s <--> %s %s %s' % (self.department_name, self.department_head_email, self.reviser1_email, self.reviser2_email)
 
 
 class FileShareReviserChainManager(models.Manager):
@@ -1149,6 +1179,533 @@ class UploadLinkShareUploads(models.Model):
     file_size = models.BigIntegerField()
     upload_time = models.DateTimeField(db_index=True)
     upload_ip = models.CharField(max_length=20, db_index=True)
+
+
+def approval_chain_str2list(chain_str):
+    """
+
+    chain_str: 'a@pingan.com.cn' -> 'b@pingan.com.cn' | 'c@pingan.com.cn' -> 'd@pingan.com.cn'
+    """
+    chain_str = chain_str.strip()
+    ele_list = [x.strip() for x in chain_str.split('->') if x.strip()]
+    ret = []
+    for x in ele_list:
+        l = [y.strip() for y in x.split('|') if y.strip()]
+        if len(l) > 1:
+            ret.append(tuple(['op_or'] + l))
+        else:
+            ret.append(l[0])
+    return ret
+
+def approval_chain_list2str(chain_list, with_nickname=True):
+    def get_nickname(username):
+        nickname_cache = {}
+        return nickname_cache.get(username, email2nickname(username))
+
+    l = []
+    for ele in chain_list:
+        if isinstance(ele, basestring):
+            if with_nickname:
+                l.append("(%s) %s" % (get_nickname(ele), ele))
+            else:
+                l.append("%s" % (ele))
+        else:
+            t = []
+            for x in ele[1:]:
+                if with_nickname:
+                    t.append("(%s) %s" % (get_nickname(x), x))
+                else:
+                    t.append("%s" % (x))
+            l.append(' | '.join(t))
+
+    return ' -> '.join(l)
+
+class ApprovalChainManager(models.Manager):
+    def create_chain(self, dept, chain_list):
+        """
+
+        chain_list -> ['a@pingan.com.cn', ('op_or', 'b@pingan.com.cn', 'c@pingan.com.cn')]
+        """
+        if not chain_list or not dept:
+            return False
+
+        parent = None
+        for ele in chain_list:
+            if isinstance(ele, basestring):
+                obj = super(ApprovalChainManager, self).create(
+                    parent=parent, email=ele, department=dept)
+                parent = obj
+            else:
+                sibling_type = ele[0]
+                objs = []
+                for x in ele[1:]:
+                    obj = super(ApprovalChainManager, self).create(
+                        parent=parent, email=x, department=dept,
+                        sibling_type=sibling_type
+                    )
+                    objs.append(obj)
+                parent = objs[0]
+
+        return True
+
+    def get_by_department(self, dept, flat=False):
+        """
+        e.g.
+
+        [u'a@pingan.com.cn', ('op_or', u'b@pingan.com.cn', u'c@pingan.com.cn'), u'd@pingan.com.cn']
+        """
+        # find root node which has no parent
+        def find_root(l):
+            x = []
+            for ele in l:
+                if not ele.parent:
+                    x.append(ele)
+            return x
+
+        # find child nodes
+        def find_child(l, parent_node):
+            x = []
+            for ele in l:
+                if ele.parent and ele.parent == parent_node:
+                    x.append(ele)
+            return x
+
+        # find sibling nodes
+        def find_siblings(l, node):
+            x = []
+            for ele in l:
+                if ele.parent == node.parent:
+                    x.append(ele)
+            return x
+
+        if flat is True:
+            return super(ApprovalChainManager, self).filter(department=dept).\
+                values_list('email', flat=True)
+        else:
+            values = super(ApprovalChainManager, self).filter(department=dept)
+
+            if len(values) == 0:
+                return []
+
+            ret = []
+            root_node = find_root(values)
+            if root_node:
+                if len(root_node) > 1:
+                    ret.append(tuple(['op_or'] + [x.email for x in root_node]))
+                else:
+                    ret.append(root_node[0].email)
+            else:
+                logger.warn('No root node in department chain: %s' % dept)
+                return []
+
+            root = root_node[0]
+            while True:
+                child = find_child(values, root)
+                if not child:
+                    break
+
+                if len(child) == 1:
+                    ret.append(child[0].email)
+                else:
+                    ret.append(tuple(['op_or'] + [x.email for x in child]))
+                root = child[0]
+
+            return ret
+
+    def get_emails(self):
+        l = super(ApprovalChainManager, self).values_list('email', flat=True)
+        return list(set(l))
+
+
+class ApprovalChain(models.Model):
+    parent = models.ForeignKey('self', blank=True, null=True,
+                               on_delete=models.SET_NULL)
+    sibling_type = models.CharField(max_length=255, default='')
+    email = LowerCaseCharField(db_index=True, max_length=255)
+    department = models.CharField(max_length=255, db_index=True)
+    ctime = models.DateTimeField(db_index=True, default=timezone.now)
+    mtime = models.DateTimeField(default=timezone.now)
+    objects = ApprovalChainManager()
+
+
+def get_chain_step_sibling_type(ele):
+    try:
+        a = ele.email
+        return None
+    except:
+        return ele[0]
+
+def get_chain_step_status(ele):
+    if not get_chain_step_sibling_type(ele):  # no siblings
+        return ele.status
+    else:
+        for x in ele[1:]:
+            if x.status == STATUS_PASS:
+                return STATUS_PASS
+            if x.status == STATUS_VETO:
+                return STATUS_VETO
+        return STATUS_VERIFING
+
+def get_chain_step_emails(ele):
+    if not get_chain_step_sibling_type(ele):  # no siblings
+        return [ele.email]
+    else:
+        return [x.email for x in ele[1:]]
+
+def get_chain_next_step(chain_status_list, cur_email):
+    next_step = None
+    next_idx = 0
+    for idx, obj in enumerate(chain_status_list):
+        if get_chain_step_sibling_type(obj):  # siblings
+            sibling_type = obj[0]  # can be 'op_or' or 'op_and'
+            siblings = obj[1:]
+            if cur_email in [x.email for x in siblings]:
+                next_idx = idx + 1
+            else:               # cur_email not in current step, goto next
+                continue
+        else:  # no siblings
+            if cur_email == obj.email:
+                next_idx = idx + 1
+            else:               # cur_email not in current step, goto next
+                continue
+
+        try:
+            next_ele = chain_status_list[next_idx]
+            if get_chain_step_status(next_ele) != STATUS_VERIFING:
+                continue
+            else:
+                next_step = next_ele
+                break
+        except IndexError:
+            pass
+
+    return next_step
+
+class FileShareApprovalStatusManager(models.Manager):
+    def get_dlp_status(self):
+        return super(FileShareApprovalStatusManager, self).filter(email='dlp')
+
+    def get_dlp_status_by_share_link(self, share_link):
+        r = super(FileShareApprovalStatusManager, self).filter(share_link=share_link).filter(email='dlp')
+        if len(r) == 0:
+            return None
+        else:
+            return r[0]
+
+    def get_by_email(self, username):
+        return super(FileShareApprovalStatusManager, self).filter(email=username)
+
+    def get_chain_status_by_share_link(self, share_link):
+        """
+        e.g.
+
+        [stat_obj(email='dlp', status=1),
+            stat_obj(email='a@pingan.com.cn', status=1),
+            ('op_or', stat_obj(email='b@pingan.com.cn', status=0),
+                      stat_obj(email='c@pingan.com.cn', status=1))]
+        """
+        status_dict = {}
+        vtime_dict = {}
+        msg_dict = {}
+        for x in super(FileShareApprovalStatusManager, self).filter(share_link=share_link):
+            status_dict[x.email] = x.status
+            vtime_dict[x.email] = x.vtime
+            msg_dict[x.email] = x.msg
+
+        stat_obj = namedtuple('ApprovalStatusTuple', ['email', 'status', 'vtime', 'msg'])
+        ret = [stat_obj(email='dlp', status=status_dict.get('dlp', STATUS_VERIFING),
+               vtime=vtime_dict.get('dlp', None), msg=msg_dict.get('dlp', ''))]
+        chain_list = share_link.get_approval_chain()
+        if not chain_list:      # no reviser chain found for share link
+            return []
+
+        for ele in chain_list:
+            if isinstance(ele, basestring):
+                ret.append(stat_obj(email=ele, status=status_dict.get(
+                    ele, STATUS_VERIFING), vtime=vtime_dict.get(ele, None), msg=msg_dict.get(ele, '')))
+            else:
+                tmp_list = [ele[0]]
+                for x in ele[1:]:
+                    tmp_list.append(
+                        stat_obj(email=x,
+                                 status=status_dict.get(x, STATUS_VERIFING),
+                                 vtime=vtime_dict.get(x, None),
+                                 msg=msg_dict.get(x, '')))
+                ret.append(tuple(tmp_list))
+
+        return ret
+
+    def get_status(self, share_link):
+        """Return status of share link.
+
+        0: verifing
+        1: pass
+        2: veto
+        """
+        chain_status = self.get_chain_status_by_share_link(share_link)
+        if not chain_status:
+            return STATUS_VERIFING
+
+        people_status = chain_status[1:]  # ignore first DLP status
+        if not people_status:
+            return STATUS_VERIFING
+
+        status_list = []
+        for ele in people_status:
+            if get_chain_step_sibling_type(ele):
+                tmp_status = STATUS_VERIFING
+                for x in ele[1:]:  # ignore 'op_or'
+                    if x.status == STATUS_PASS:
+                        tmp_status = STATUS_PASS
+                        break
+                    if x.status == STATUS_VETO:
+                        tmp_status = STATUS_VETO
+                        break
+                status_list.append(tmp_status)
+            else:
+                status_list.append(ele.status)
+
+        for y in status_list:
+            if y == STATUS_VERIFING:
+                return STATUS_VERIFING
+            if y == STATUS_VETO:
+                return STATUS_VETO
+        return STATUS_PASS
+
+    def get_verbose_status(self, share_link):
+        """Return verbose status of share link.
+
+        e.g.
+        [(0, 'Awating DLP verifing'),
+        (0, 'Awaiting a (a@pingan.com.cn) verifing'),
+        (0, 'Awaiting b (b@pingna.com.cn) | c (c@pingan.com.cn) verifing'),
+        (0, 'Awaiting d (d@pingan.com.cn) verifing'),
+        ]
+        """
+        chain_status = self.get_chain_status_by_share_link(share_link)
+        if not chain_status:
+            return []
+
+        status_list = []
+
+        # 1. add first DLP status
+        dlp_status = chain_status[0]
+        if dlp_status.status == STATUS_VERIFING:
+            dlp_msg = _('Awaiting DLP verifing')
+        elif dlp_status.status == STATUS_PASS:
+            if dlp_status.vtime:
+                dlp_msg = _('DLP passed at %s') % dlp_status.vtime.strftime('%Y-%m-%d')
+            else:
+                dlp_msg = _('DLP passed')
+        elif dlp_status.status == STATUS_VETO:
+            if dlp_status.vtime:
+                dlp_msg = _('DLP veto at %s') % dlp_status.vtime.strftime('%Y-%m-%d')
+            else:
+                dlp_msg = _('DLP veto')
+        status_list.append((dlp_status.status, dlp_msg))
+
+        # 2. add people status in the chain
+        for ele in chain_status[1:]:
+            step_status = get_chain_step_status(ele)
+            step_emails = get_chain_step_emails(ele)
+            if step_status == STATUS_VERIFING:
+                target_name = ' | '.join(
+                    ["%s %s" % (email2nickname(x), x) for x in step_emails])
+                target_msg = _('Awaiting %s verifing') % target_name
+            elif step_status == STATUS_PASS:
+                if get_chain_step_sibling_type(ele):
+                    for x in ele[1:]:  # ignore 'op_or'
+                        if x.status == STATUS_PASS:
+                            target = x
+                            break
+                else:
+                    target = ele
+
+                target_name = "%s %s" % (email2nickname(target.email), target.email)
+                if target.vtime:
+                    target_msg = _('%(info)s passed at %(date)s') % {
+                        'info': target_name,
+                        'date': target.vtime.strftime('%Y-%m-%d')
+                    }
+                else:
+                    target_msg = _('%s passed') % target_name
+                if target.msg:  # add optional user approval msg
+                    target_msg += ' (' + target.msg + ')'
+            else:
+                if get_chain_step_sibling_type(ele):
+                    for x in ele[1:]:  # ignore 'op_or'
+                        if x.status == STATUS_VETO:
+                            target = x
+                            break
+                else:
+                    target = ele
+
+                target_name = "%s %s" % (email2nickname(target.email), target.email)
+                if target.vtime:
+                    target_msg = _('%(info)s veto at %(date)s') % {
+                        'info': target_name,
+                        'date': target.vtime.strftime('%Y-%m-%d')
+                    }
+                else:
+                    target_msg = _('%s veto') % target_name
+                if target.msg:  # add optional user approval msg
+                    target_msg += ' (' + target.msg + ')'
+            status_list.append((step_status, target_msg))
+
+        return status_list
+
+    def set_status(self, share_link, status, username, msg=None):
+        """Set verify status.
+        """
+        try:
+            s = super(FileShareApprovalStatusManager, self).get(
+                share_link=share_link, email=username)
+        except self.model.DoesNotExist:
+            s = super(FileShareApprovalStatusManager, self).create(
+                share_link=share_link, email=username)
+
+        if s.status != STATUS_VERIFING:
+            logger.warn('share link is already verified. status: %s' % status)
+            return s
+
+        s.status = status
+        s.vtime = datetime.datetime.now()
+        if msg is not None:
+            s.msg = msg
+        s.save()
+        return s
+
+
+class FileShareApprovalStatus(models.Model):
+    STATUS_CHOICES = (
+        (STATUS_VERIFING, 'Verifing'),
+        (STATUS_PASS, 'Pass'),
+        (STATUS_VETO, 'Veto')
+    )
+
+    DLP_EMAIL = 'dlp'           # use 'dlp' as email value for DLP records
+
+    share_link = models.ForeignKey(FileShare)
+    email = LowerCaseCharField(db_index=True, max_length=255)
+    status = models.IntegerField(choices=STATUS_CHOICES,
+                                 default=STATUS_VERIFING)
+    msg = models.TextField(blank=True, null=True)
+    ctime = models.DateTimeField(db_index=True, default=timezone.now)
+    vtime = models.DateTimeField(blank=True, null=True)
+
+    objects = FileShareApprovalStatusManager()
+
+    class Meta:
+        unique_together = (('share_link', 'email'),)
+
+
+class FileShareApprovalChainManager(models.Manager):
+    def get_by_share_link(self, share_link, flat=False):
+        """
+        e.g.
+        [u'a@pingan.com.cn', ('op_or', u'b@pingan.com.cn', u'c@pingan.com.cn'), u'd@pingan.com.cn']
+        """
+        # find root node which has no parent
+        def find_root(l):
+            x = []
+            for ele in l:
+                if not ele.parent:
+                    x.append(ele)
+            return x
+
+        # find child nodes
+        def find_child(l, parent_node):
+            x = []
+            for ele in l:
+                if ele.parent and ele.parent == parent_node:
+                    x.append(ele)
+            return x
+
+        # find sibling nodes
+        def find_siblings(l, node):
+            x = []
+            for ele in l:
+                if ele.parent == node.parent:
+                    x.append(ele)
+            return x
+
+        if flat is True:
+            return super(FileShareApprovalChainManager, self).filter(
+                share_link=share_link).\
+                values_list('email', flat=True)
+        else:
+            values = super(FileShareApprovalChainManager, self).filter(
+                share_link=share_link)
+
+            if len(values) == 0:
+                return []
+
+            ret = []
+            root_node = find_root(values)
+            if root_node:
+                if len(root_node) > 1:
+                    ret.append(tuple(['op_or'] + [x.email for x in root_node]))
+                else:
+                    ret.append(root_node[0].email)
+            else:
+                logger.warn('No root node in department chain: %s' % share_link.pk)
+                return []
+
+            root = root_node[0]
+            while True:
+                child = find_child(values, root)
+                if not child:
+                    break
+
+                if len(child) == 1:
+                    ret.append(child[0].email)
+                else:
+                    ret.append(tuple(['op_or'] + [x.email for x in child]))
+                root = child[0]
+
+            return ret
+
+    def create_fs_approval_chain(self, share_link):
+        username = share_link.username
+        d_profile = DetailedProfile.objects.get_detailed_profile_by_user(username)
+        if not d_profile:
+            logger.error('No detailed profile(department, ... etc) found for user %s' % username)
+            return
+
+        chain = ApprovalChain.objects.get_by_department(d_profile.department)
+        if not chain:
+            return
+
+        parent = None
+        for ele in chain:
+            if isinstance(ele, basestring):
+                obj = super(FileShareApprovalChainManager, self).create(
+                    share_link=share_link, parent=parent, email=ele)
+                parent = obj
+            else:
+                sibling_type = ele[0]
+                objs = []
+                for x in ele[1:]:
+                    obj = super(FileShareApprovalChainManager, self).create(
+                        share_link=share_link, parent=parent, email=x,
+                        sibling_type=sibling_type
+                    )
+                    objs.append(obj)
+                parent = objs[0]
+
+        return True
+
+
+class FileShareApprovalChain(models.Model):
+    """Share link approval chain info. Use department approval chain info
+    if link not found in this table.
+    """
+    share_link = models.ForeignKey(FileShare)
+    email = LowerCaseCharField(db_index=True, max_length=255)
+    parent = models.ForeignKey('self', blank=True, null=True,
+                               on_delete=models.SET_NULL)
+    sibling_type = models.CharField(max_length=255, default='')
+    objects = FileShareApprovalChainManager()
 
 
 ########## Handle signals to remove file share

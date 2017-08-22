@@ -26,6 +26,7 @@ from .views_pingan import *
 urlpatterns += patterns(
     '',
     url(r'^links/verify/$', list_file_share_verify, name='list_file_share_verify'),
+    url(r'^links/verify/remove/(?P<sid>\d+)/$', remove_file_share_verify, name='remove_file_share_verify'),
     url(r'^links/export-verified-links/$', export_verified_links, name='export_verified_links'),
     url(r'^ajax/change-download-link-status/$', ajax_change_dl_link_status, name='ajax_change_dl_link_status'),
     url(r'^ajax/get-link-verify-code/$', ajax_get_link_verify_code, name='ajax_get_link_verify_code'),
@@ -35,3 +36,4 @@ urlpatterns += patterns(
     url(r'^ajax/get-link-status/$', ajax_get_link_status, name='ajax_get_link_status'),
 )
 ######################### End PingAn Group related ##########################
+

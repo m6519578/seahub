@@ -2,6 +2,7 @@
 """
 Extra sysadmin functions for Zhong Guo Ping An.
 """
+from collections import namedtuple
 import logging
 import json
 import os
@@ -15,14 +16,17 @@ from django.template.defaultfilters import filesizeformat
 from django.template.loader import render_to_string
 from django.utils.translation import ugettext as _
 
+from seahub.base.accounts import User
 from seahub.base.decorators import sys_staff_required
+from seahub.base.templatetags.seahub_tags import email2nickname
 from seahub.auth.decorators import login_required, login_required_ajax
 from seahub.utils import gen_shared_upload_link, is_valid_email
 from seahub.utils.ms_excel import write_xls
-from seahub.share.models import FileShare, UploadLinkShare, FileShareVerify, \
-    FileShareReviserChain, UploadLinkShareUploads, FileShareDownloads, \
-    FileShareReviserMap, FileShareVerifyIgnore
-from seahub.share.share_link_checking import get_reviser_info_by_user
+from seahub.share.models import FileShare, UploadLinkShare, \
+    UploadLinkShareUploads, FileShareDownloads, \
+    FileShareReviserMap, FileShareVerifyIgnore, ApprovalChain, \
+    approval_chain_str2list, approval_chain_list2str, FileShareApprovalStatus,\
+    get_chain_step_sibling_type
 from seahub.share.constants import STATUS_VERIFING, STATUS_PASS, STATUS_VETO
 from seahub.settings import SITE_ROOT
 
@@ -32,66 +36,45 @@ logger = logging.getLogger(__name__)
 @login_required
 @sys_staff_required
 def sys_reviser_admin(request):
-    """List all reviser.
+    """List department approval chain.
     """
+    # 1. get department list, e.g. [u'dept1', u'dept2', u'dept3']
     search_filter = request.GET.get('filter', '')
     if search_filter:
-        qs = FileShareReviserChain.objects.filter(
-            department_name__contains=search_filter)
+        qs = ApprovalChain.objects.filter(department__contains=search_filter
+        ).values_list('department', flat=True).distinct()
     else:
-        qs = FileShareReviserChain.objects.all()
+        qs = ApprovalChain.objects.values_list('department',
+                                               flat=True).distinct()
 
     # Make sure page request is an int. If not, deliver first page.
     try:
         current_page = int(request.GET.get('page', '1'))
-        per_page = int(request.GET.get('per_page', '100'))
+        per_page = int(request.GET.get('per_page', '25'))
     except ValueError:
         current_page = 1
-        per_page = 100
+        per_page = 25
 
     offset = per_page * (current_page - 1)
-    revisers_plus_one = qs[offset:offset + per_page + 1]
-    if len(revisers_plus_one) == per_page + 1:
+    dept_plus_one = qs[offset:offset + per_page + 1]
+    if len(dept_plus_one) == per_page + 1:
         page_next = True
     else:
         page_next = False
 
-    def format_td(name, account, email):
-        l = []
-        if name: l.append(name)
-        if account: l.append(account)
-        if email: l.append(email)
-        return '<br />'.join(l)
-
-    revisers = revisers_plus_one[:per_page]
-    for r in revisers:
-
-        r.line_manager_info = format_td(
-            r.line_manager_name, r.line_manager_account,
-            r.line_manager_email)
-
-        r.department_head_info = format_td(
-            r.department_head_name, r.department_head_account,
-            r.department_head_email)
-
-        r.comanager_head_info = format_td(
-            r.comanager_head_name, r.comanager_head_account,
-            r.comanager_head_email)
-
-        if r.compliance_owner2_email:
-            l = []
-            l.append(r.compliance_owner_name + ' | ' + r.compliance_owner2_name)
-            l.append(r.compliance_owner_account + ' | ' + r.compliance_owner2_account)
-            l.append(r.compliance_owner_email + ' | ' + r.compliance_owner2_email)
-            r.compliance_owner_info = '<br />'.join(l)
-        else:
-            r.compliance_owner_info = format_td(
-                r.compliance_owner_name, r.compliance_owner_account,
-                r.compliance_owner_email)
+    # 2. get all records in those department list
+    ret = []
+    for dept in dept_plus_one[:per_page]:
+        chain_obj = namedtuple('ChainObj', ['department', 'chain', 'chain_raw'])
+        chain = ApprovalChain.objects.get_by_department(dept)
+        chain_str = approval_chain_list2str(chain)
+        chain_raw = approval_chain_list2str(chain, with_nickname=False)
+        ret.append(chain_obj(department=dept, chain=chain_str,
+                             chain_raw=chain_raw))
 
     return render_to_response(
         'sysadmin/sys_reviseradmin.html', {
-            'revisers': revisers,
+            'chain_list': ret,
             'current_page': current_page,
             'prev_page': current_page - 1,
             'next_page': current_page + 1,
@@ -163,91 +146,114 @@ def reviser_add(request):
     result = {}
     content_type = 'application/json; charset=utf-8'
 
-    department_name = request.POST.get('department_name', None)
+    department_name = request.POST.get('department_name', '').strip()
     if not department_name:
         result['error'] = _(u'Invalid department')
         return HttpResponse(json.dumps(result), status=400, content_type=content_type)
 
-    line_manager_name = request.POST.get('line_manager_name', None)
-    line_manager_account = request.POST.get('line_manager_account', None)
-    line_manager_email = request.POST.get('line_manager_email', None)
-    if not line_manager_email or not is_valid_email(line_manager_email):
-        result['error'] = _(u'Invalid line manager email')
+    # if len(ApprovalChain.objects.filter(department=department_name)) > 0:
+    #     result['error'] = '部门：%s 已存在'
+    #     return HttpResponse(json.dumps(result), status=400, content_type=content_type)
+
+    # remove duplicated records
+    ApprovalChain.objects.filter(department=department_name).delete()
+
+    chain = request.POST.get('chain', '').strip()
+    if not chain:
+        result['error'] = 'Chain empty'
         return HttpResponse(json.dumps(result), status=400, content_type=content_type)
 
-    department_head_name = request.POST.get('department_head_name', None)
-    department_head_account = request.POST.get('department_head_account', None)
-    department_head_email = request.POST.get('department_head_email', None)
-    if not department_head_email or not is_valid_email(department_head_email):
-        result['error'] = _(u'Invalid department head email')
+    chain_list = approval_chain_str2list(chain)
+    for e in chain_list:
+        if isinstance(e, basestring):
+            if not is_valid_email(e):
+                result['error'] = 'Invalid email: %s' % e
+                return HttpResponse(json.dumps(result), status=400, content_type=content_type)
+            try:
+                u = User.objects.get(email=e)
+                if not u.is_active:
+                    result['error'] = u'用户未激活: %s' % e
+                    return HttpResponse(json.dumps(result), status=400, content_type=content_type)
+            except User.DoesNotExist:
+                result['error'] = u'用户不存在: %s' % e
+                return HttpResponse(json.dumps(result), status=400, content_type=content_type)
+        else:
+            for x in e[1:]:
+                if not is_valid_email(x):
+                    result['error'] = 'Invalid email: %s' % x
+                    return HttpResponse(json.dumps(result), status=400, content_type=content_type)
+                try:
+                    u = User.objects.get(email=x)
+                    if not u.is_active:
+                        result['error'] = u'用户未激活: %s' % e
+                        return HttpResponse(json.dumps(result), status=400, content_type=content_type)
+                except User.DoesNotExist:
+                    result['error'] = u'用户不存在: %s' % x
+                    return HttpResponse(json.dumps(result), status=400, content_type=content_type)
+
+    ApprovalChain.objects.create_chain(department_name, chain_list)
+    result['success'] = True
+    return HttpResponse(json.dumps(result), content_type=content_type)
+
+@login_required_ajax
+def reviser_test(request):
+    """Test reviser syntax"""
+
+    if not request.user.is_staff or request.method != 'POST':
+        raise Http404
+
+    result = {}
+    content_type = 'application/json; charset=utf-8'
+
+    department_name = request.POST.get('department_name', '').strip()
+    if not department_name:
+        result['error'] = _(u'Invalid department')
         return HttpResponse(json.dumps(result), status=400, content_type=content_type)
 
-    comanager_head_name = request.POST.get('comanager_head_name', None)
-    comanager_head_account = request.POST.get('comanager_head_account', None)
-    comanager_head_email = request.POST.get('comanager_head_email', None)
-    if not comanager_head_email or not is_valid_email(comanager_head_email):
-        result['error'] = _(u'Invalid comanager head email')
+    # if len(ApprovalChain.objects.filter(department=department_name)) > 0:
+    #     result['error'] = '部门：%s 已存在' % (department_name)
+    #     return HttpResponse(json.dumps(result), status=400, content_type=content_type)
+
+    chain = request.POST.get('chain', '').strip()
+    if not chain:
+        result['error'] = 'Chain empty'
         return HttpResponse(json.dumps(result), status=400, content_type=content_type)
 
-    compliance_owner_name = request.POST.get('compliance_owner_name', None)
-    compliance_owner_account = request.POST.get('compliance_owner_account', None)
-    compliance_owner_email = request.POST.get('compliance_owner_email', None)
-    if not compliance_owner_email or not is_valid_email(compliance_owner_email):
-        result['error'] = _(u'Invalid compliance owner email')
-        return HttpResponse(json.dumps(result), status=400, content_type=content_type)
+    chain_list = approval_chain_str2list(chain)
+    ret = []
+    for e in chain_list:
+        if isinstance(e, basestring):
+            if not is_valid_email(e):
+                result['error'] = 'Invalid email: %s' % e
+                return HttpResponse(json.dumps(result), status=400, content_type=content_type)
 
-    compliance_owner2_name = request.POST.get('compliance_owner2_name', '')
-    compliance_owner2_account = request.POST.get('compliance_owner2_account', '')
-    compliance_owner2_email = request.POST.get('compliance_owner2_email', '')
+            try:
+                u = User.objects.get(email=e)
+                if not u.is_active:
+                    result['error'] = u'用户未激活: %s' % e
+                    return HttpResponse(json.dumps(result), status=400, content_type=content_type)
+            except User.DoesNotExist:
+                result['error'] = u'用户不存在: %s' % e
+                return HttpResponse(json.dumps(result), status=400, content_type=content_type)
+            ret.append(u"(%s) %s 顺序审批" % (email2nickname(e), e))
+        else:
+            for x in e[1:]:
+                if not is_valid_email(x):
+                    result['error'] = 'Invalid email: %s' % x
+                    return HttpResponse(json.dumps(result), status=400, content_type=content_type)
+                try:
+                    u = User.objects.get(email=x)
+                    if not u.is_active:
+                        result['error'] = u'用户未激活: %s' % e
+                        return HttpResponse(json.dumps(result), status=400, content_type=content_type)
+                except User.DoesNotExist:
+                    result['error'] = u'用户不存在: %s' % x
+                    return HttpResponse(json.dumps(result), status=400, content_type=content_type)
 
-    try:
-        fs_rchain = FileShareReviserChain.objects.get(department_name=department_name)
+                ret.append(u"(%s) %s 协同审批" % (email2nickname(x), x))
 
-        fs_rchain.line_manager_name = line_manager_name
-        fs_rchain.line_manager_account = line_manager_account
-        fs_rchain.line_manager_email = line_manager_email
-
-        fs_rchain.department_head_name = department_head_name
-        fs_rchain.department_head_account = department_head_account
-        fs_rchain.department_head_email = department_head_email
-
-        fs_rchain.comanager_head_name = comanager_head_name
-        fs_rchain.comanager_head_account = comanager_head_account
-        fs_rchain.comanager_head_email = comanager_head_email
-
-        fs_rchain.compliance_owner_name = compliance_owner_name
-        fs_rchain.compliance_owner_account = compliance_owner_account
-        fs_rchain.compliance_owner_email = compliance_owner_email
-
-        fs_rchain.compliance_owner2_name = compliance_owner2_name
-        fs_rchain.compliance_owner2_account = compliance_owner2_account
-        fs_rchain.compliance_owner2_email = compliance_owner2_email
-
-        fs_rchain.save()
-
-        result['success'] = True
-        return HttpResponse(json.dumps(result), content_type=content_type)
-    except FileShareReviserChain.DoesNotExist:
-        pass
-
-    # add new reviser chain
-    try:
-        FileShareReviserChain.objects.add_file_share_reviser(
-            department_name,
-            line_manager_name, line_manager_account, line_manager_email,
-            department_head_name, department_head_account, department_head_email,
-            comanager_head_name, comanager_head_account, comanager_head_email,
-            compliance_owner_name, compliance_owner_account, compliance_owner_email,
-            compliance_owner2_name, compliance_owner2_account, compliance_owner2_email,
-        )
-
-        result['success'] = True
-        return HttpResponse(json.dumps(result), content_type=content_type)
-    except Exception as e:
-        logger.error(e)
-        result['error'] = _(u'Internal server error')
-        return HttpResponse(json.dumps(result), status=500,
-                            content_type=content_type)
+    result['ret'] = '<br>'.join(ret)
+    return HttpResponse(json.dumps(result), content_type=content_type)
 
 @login_required_ajax
 def reviser_map_add(request):
@@ -320,17 +326,12 @@ def verify_ignore_add(request):
 
 @login_required
 @sys_staff_required
-def reviser_remove(request, reviser_info_id):
+def reviser_remove(request, dept):
     """Remove reviser"""
     referer = request.META.get('HTTP_REFERER', None)
     next = reverse('sys_reviser_admin') if referer is None else referer
 
-    try:
-        FileShareReviserChain.objects.get(id=reviser_info_id).delete()
-        messages.success(request, _(u'Success'))
-    except Exception as e:
-        logger.error(e)
-        messages.error(request, _(u'Failed'))
+    ApprovalChain.objects.filter(department=dept).delete()
 
     return HttpResponseRedirect(next)
 
@@ -384,10 +385,34 @@ def ajax_get_upload_files_info(request):
     return HttpResponse(json.dumps({'html': html}), content_type=content_type)
 
 def prepare_download_links(download_links):
+    fs_downloads = FileShareDownloads.objects.all()
+
+    dl_dict = {}
+    for ele in fs_downloads:
+        try:
+            share_link_id = ele.share_link.pk
+        except FileShare.DoesNotExist:
+            ele.delete()
+            continue
+
+        val = dl_dict.get(share_link_id)
+        if val:
+            val['dl_counts'] += 1
+        else:
+            dl_dict[share_link_id] = {
+                'first_dl_time': ele.download_time,
+                'dl_counts': 1,
+            }
+
     for d_link in download_links:
         d_link.filename = d_link.get_name()
-        d_link.first_dl_time = FileShareDownloads.objects.get_first_download_time(share_link=d_link)
-        d_link.dl_cnt = FileShareDownloads.objects.filter(share_link=d_link).count()
+        dl_info = dl_dict.get(d_link.pk, None)
+        if dl_info:
+            d_link.first_dl_time = dl_info['first_dl_time']
+            d_link.dl_cnt = dl_info['dl_counts']
+        else:
+            d_link.first_dl_time = None
+            d_link.dl_cnt = 0
         d_link.is_expired = d_link.is_expired()
         d_link.shared_link = d_link.get_full_url()
 
@@ -526,28 +551,17 @@ def sys_links_report_export_excel(request):
             _("Name"),
             _("From"),
             _("Status"),
-            _("DLP Status"),
-            _("Time"),
-            _("Line Manager Email"),
-            _("Line Manager Status"),
-            _("Time"),
-            _("Department Head Email"),
-            _("Department Head Status"),
-            _("Time"),
-            _("Comanager Head Email"),
-            _("Comanager Head Status"),
-            _("Time"),
-            _("Compliance Owner Email"),
-            _("Compliance Owner Status"),
-            _("Time"),
-            _("Compliance Owner Email") + ' 2',
-            _("Compliance Owner Status"),
-            _("Time"),
             _("Created at"),
             _("First Download Time"),
             _("Downloads"),
             _("Expiration"),
             _("Link"),
+            _("DLP Status"),
+            _("Time"),
+
+            _("Email"),
+            _("Status"),
+            _("Time"),
         ]
 
         data_list = []
@@ -557,144 +571,61 @@ def sys_links_report_export_excel(request):
             download_links = FileShare.objects.filter(s_type='f')
 
         download_links = prepare_download_links(download_links)
+        status_dict = {
+            STATUS_VERIFING: _('verifing'),
+            STATUS_PASS: _('pass'),
+            STATUS_VETO: _('veto')
+        }
         for d_link in download_links:
-
-            try:
-                fs_verify = FileShareVerify.objects.get(share_link=d_link)
-            except FileShareVerify.DoesNotExist as e:
-                logger.error(e)
+            app_status = FileShareApprovalStatus.objects.get_chain_status_by_share_link(d_link)
+            if not app_status:
                 continue
-
-            reviser_info = get_reviser_info_by_user(d_link.username)
-            if reviser_info is None:
-                continue
-
-            # get DLP verify status
-            DLP_status = '--'
-            DLP_vtime = '--'
-            if fs_verify.DLP_status == STATUS_VERIFING:
-                DLP_status = _('verifing')
-            elif fs_verify.DLP_status == STATUS_PASS:
-                DLP_status = _('pass')
-            elif fs_verify.DLP_status == STATUS_VETO:
-                DLP_status = _('veto')
-
-            if fs_verify.DLP_vtime:
-                DLP_vtime = fs_verify.DLP_vtime.strftime('%Y-%m-%d')
-
-            # get line manager verify status
-            line_manager_status = '--'
-            line_manager_vtime = '--'
-            line_manager_email = '--'
-            if fs_verify.line_manager_status == STATUS_VERIFING:
-                line_manager_status = _('verifing')
-            elif fs_verify.line_manager_status == STATUS_PASS:
-                line_manager_status = _('pass')
-            elif fs_verify.line_manager_status == STATUS_VETO:
-                line_manager_status = _('veto')
-
-            if fs_verify.line_manager_vtime:
-                line_manager_vtime = fs_verify.line_manager_vtime.strftime('%Y-%m-%d')
-
-            if reviser_info.line_manager_email:
-                line_manager_email = reviser_info.line_manager_email
-
-            # get department head verify status
-            department_head_status = '--'
-            department_head_vtime = '--'
-            department_head_email = '--'
-            if fs_verify.department_head_status == STATUS_VERIFING:
-                department_head_status = _('verifing')
-            elif fs_verify.department_head_status == STATUS_PASS:
-                department_head_status = _('pass')
-            elif fs_verify.department_head_status == STATUS_VETO:
-                department_head_status = _('veto')
-
-            if fs_verify.department_head_vtime:
-                department_head_vtime = fs_verify.department_head_vtime.strftime('%Y-%m-%d')
-
-            if reviser_info.department_head_email:
-                department_head_email = reviser_info.department_head_email
-
-            # get comanager head verify status
-            comanager_head_status = '--'
-            comanager_head_vtime = '--'
-            comanager_head_email = '--'
-            if fs_verify.comanager_head_status == STATUS_VERIFING:
-                comanager_head_status = _('verifing')
-            elif fs_verify.comanager_head_status == STATUS_PASS:
-                comanager_head_status = _('pass')
-            elif fs_verify.comanager_head_status == STATUS_VETO:
-                comanager_head_status = _('veto')
-
-            if fs_verify.comanager_head_vtime:
-                comanager_head_vtime = fs_verify.comanager_head_vtime.strftime('%Y-%m-%d')
-
-            if reviser_info.comanager_head_email:
-                comanager_head_email = reviser_info.comanager_head_email
-
-            # get compliance owner verify status
-            compliance_owner_status = '--'
-            compliance_owner_vtime = '--'
-            compliance_owner_email = '--'
-            if fs_verify.compliance_owner_status == STATUS_VERIFING:
-                compliance_owner_status = _('verifing')
-            elif fs_verify.compliance_owner_status == STATUS_PASS:
-                compliance_owner_status = _('pass')
-            elif fs_verify.compliance_owner_status == STATUS_VETO:
-                compliance_owner_status = _('veto')
-
-            if fs_verify.compliance_owner_vtime:
-                compliance_owner_vtime = fs_verify.compliance_owner_vtime.strftime('%Y-%m-%d')
-
-            if reviser_info.compliance_owner_email:
-                compliance_owner_email = reviser_info.compliance_owner_email
-
-            # get compliance owner2 verify status
-            compliance_owner2_status = '--'
-            compliance_owner2_vtime = '--'
-            compliance_owner2_email = '--'
-            if reviser_info.compliance_owner2_email:
-                if fs_verify.compliance_owner2_status == STATUS_VERIFING:
-                    compliance_owner2_status = _('verifing')
-                elif fs_verify.compliance_owner2_status == STATUS_PASS:
-                    compliance_owner2_status = _('pass')
-                elif fs_verify.compliance_owner2_status == STATUS_VETO:
-                    compliance_owner2_status = _('veto')
-
-                if fs_verify.compliance_owner2_vtime:
-                    compliance_owner2_vtime = fs_verify.compliance_owner2_vtime.strftime('%Y-%m-%d')
-
-                compliance_owner2_email = reviser_info.compliance_owner2_email
 
             # prepare excel data
-            row = [
-                d_link.filename,
-                d_link.username,
-                d_link.get_short_status_str(),
-                DLP_status,
-                DLP_vtime,
-                line_manager_email,
-                line_manager_status,
-                line_manager_vtime,
-                department_head_email,
-                department_head_status,
-                department_head_vtime,
-                comanager_head_email,
-                comanager_head_status,
-                comanager_head_vtime,
-                compliance_owner_email,
-                compliance_owner_status,
-                compliance_owner_vtime,
-                compliance_owner2_email,
-                compliance_owner2_status,
-                compliance_owner2_vtime,
-                d_link.ctime.strftime('%Y-%m-%d'),
-                d_link.first_dl_time.strftime('%Y-%m-%d') if d_link.first_dl_time else '--',
-                d_link.dl_cnt,
-                d_link.expire_date.strftime('%Y-%m-%d') if d_link.expire_date else '--',
-                d_link.shared_link,
+            row = [d_link.filename, d_link.username,
+                   d_link.get_short_status_str(),
+                   d_link.ctime.strftime('%Y-%m-%d'),
+                   d_link.first_dl_time.strftime('%Y-%m-%d') if d_link.first_dl_time else '--',
+                   d_link.dl_cnt,
+                   d_link.expire_date.strftime('%Y-%m-%d') if d_link.expire_date else '--',
+                   d_link.shared_link,
             ]
+
+            # 1. get DLP verify status
+            DLP_status = '--'
+            DLP_vtime = '--'
+            DLP_status = status_dict.get(app_status[0].status, '')
+            if app_status[0].vtime:
+                DLP_vtime = app_status[0].vtime.strftime('%Y-%m-%d')
+
+            row.append(DLP_status)
+            row.append(DLP_vtime)
+
+            # 2. get people verify status
+            for ele in app_status[1:]:
+                people_email = '--'
+                people_status = '--'
+                people_vtime = '--'
+
+                if get_chain_step_sibling_type(ele):
+                    for x in ele[1:]:
+                        people_email = x.email
+                        people_status = status_dict.get(x.status, '')
+                        if x.vtime:
+                            people_vtime = x.vtime.strftime('%Y-%m-%d')
+
+                        row.append(people_email)
+                        row.append(people_status)
+                        row.append(people_vtime)
+                else:
+                    people_email = ele.email
+                    people_status = status_dict.get(ele.status, '')
+                    if ele.vtime:
+                        people_vtime = ele.vtime.strftime('%Y-%m-%d')
+
+                    row.append(people_email)
+                    row.append(people_status)
+                    row.append(people_vtime)
 
             data_list.append(row)
 

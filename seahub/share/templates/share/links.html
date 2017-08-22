@@ -38,7 +38,11 @@
                     <a href="#" class="stats" data-token="{{fs.token}}">{{ fs.get_short_status_str }}</a>
                     {% if fs.need_remind %}<button class="js-remind" data-token="{{fs.token}}">{% trans "remind" %}</button>{% endif %}
                 </td>
+                {% if fs.pass_verify %}
                 <td>{{ fs.view_cnt }}</td>
+                {% else %}
+                <td>--</td>
+                {% endif %}
                 {% if fs.pass_verify and fs.expire_date %}
                 <td {%if fs.is_expired%}class='error'{%endif%}>{{ fs.expire_date|date:'Y-m-d' }}</td>
                 {% else %}

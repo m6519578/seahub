@@ -13,7 +13,7 @@
         <li class="tab long-tab"><a id="verified-tab" href="#verified-links" class="a">{% trans "Verified Links" %}</a></li>
         {% if verified_links %}
         <div class="fright">
-            <button id="export-verified-links">{% trans "Export Excel" %}</button>
+            <button id="export-verified-links" class="hide">{% trans "Export Excel" %}</button>
         </div>
         {% endif %}
     </ul>
@@ -24,8 +24,9 @@
                 <th width="4%"><!--icon--></th>
                 <th width="32%">{% trans "Name"%}</th>
                 <th width="32%">{% trans "From"%}</th>
-                <th width="18%">{% trans "Status"%}</th>
+                <th width="13%">{% trans "Status"%}</th>
                 <th width="14%">{% trans "Create Time"%}</th>
+                <th width="5%"></th>
             </tr>
             {% for link in verifing_links %}
             <tr>
@@ -36,6 +37,7 @@
                     <a href="#" class="stats" data-str="{{ link.get_verbose_status_str }}">{{ link.get_short_status_str }}</a>
                 </td>
                 <td>{{ link.ctime|translate_seahub_time }}</td>
+                <td><a class="remove" data-url="{% url 'remove_file_share_verify' link.pk %}" href="#">{% trans "Remove" %}</a></td>
             </tr>
         {% endfor %}
         </table>
@@ -108,13 +110,6 @@ $("#export-verified-links").click(function() {
 });
 {% endif %}
 
-$(".view-link").click(function() {
-    var link = $(this).attr('data-link');
-    $('#shared-link').before('<p class="hide">' + link + '</p>')
-    .val(link).css('width', $('#shared-link').prev().width() + 2)
-    .modal({focus:false});
-    $('#shared-link').prev().remove();
-});
 $('.stats').click(function() {
     var ul = '<ul>';
     $.each($(this).attr('data-str').split(';'), function(idx, val) {
@@ -126,6 +121,11 @@ $('.stats').click(function() {
     $('#shared-link-stats').html(ul).css('width', '600px')
            .css('height', '250px').modal();
     return false;
+});
+
+addConfirmTo($('.remove'), {
+    'title':"{% trans "Remove" %}",
+    'con':"确定要删除该条目？"
 });
  
 </script>

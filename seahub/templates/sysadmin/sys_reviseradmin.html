@@ -23,63 +23,45 @@
 
 <form id="add-reviser-form" action="" method="post" class="hide">{% csrf_token %}
     <label for="department-name">{% trans "Department" %}</label><br />
-    <input type="text" name="department-name" id="department-name" placeholder="{% trans "Department" %}" class="input" /><br />
+    <input type="text" name="department-name" id="department-name" style="width: 482px;" placeholder="{% trans "Department" %}" class="input" /><br />
 
-    <label for="line-manager">{% trans "Line Manager" %}</label><br />
-    <input type="text" name="line-manager-name" id="line-manager-name" placeholder="{% trans "Name" %}" class="input name" />
-    <input type="text" name="line-manager-account" id="line-manager-account" placeholder="{% trans "Account" %}" class="input account" /><br />
-    <input type="text" name="line-manager-email" id="line-manager-email" placeholder="{% trans "Email" %}" class="input" /><br />
+    <label for="chain">审批链 </label><span style="margin-left: 5px;">顺序审批（->）</span> <span>协同审批（|）</span><br />
+    <textarea name="chain" id="chain" style="padding: 2px 3px;" cols="80" rows="5" placeholder="A -> B | C -> D"></textarea>
 
-    <label for="department-head">{% trans "Department Head" %}</label><br />
-    <input type="text" name="department-head-name" id="department-head-name" placeholder="{% trans "Name" %}" class="input name" />
-    <input type="text" name="department-head-account" id="department-head-account" placeholder="{% trans "Account" %}" class="input account" /><br />
-    <input type="text" name="department-head-email" id="department-head-email" placeholder="{% trans "Email" %}" class="input" /><br />
-
-    <label for="comanager-head">{% trans "Comanager Head" %}</label><br />
-    <input type="text" name="comanager-head-name" id="comanager-head-name" placeholder="{% trans "Name" %}" class="input name" />
-    <input type="text" name="comanager-head-account" id="comanager-head-account" placeholder="{% trans "Account" %}" class="input account" /><br />
-    <input type="text" name="comanager-head-email" id="comanager-head-email" placeholder="{% trans "Email" %}" class="input" /><br />
-
-    <label for="compliance-owner">{% trans "Compliance Owner" %}</label><br />
-    <input type="text" name="compliance-owner-name" id="compliance-owner-name" placeholder="{% trans "Name" %}" class="input name" />
-    <input type="text" name="compliance-owner-account" id="compliance-owner-account" placeholder="{% trans "Account" %}" class="input account" /><br />
-    <input type="text" name="compliance-owner-email" id="compliance-owner-email" placeholder="{% trans "Email" %}" class="input" /><br />
-
-    <label for="compliance-owner2">{% trans "Compliance Owner" %}2（可选）</label><br />
-    <input type="text" name="compliance-owner2-name" id="compliance-owner2-name" placeholder="{% trans "Name" %}" class="input name" />
-    <input type="text" name="compliance-owner2-account" id="compliance-owner2-account" placeholder="{% trans "Account" %}" class="input account" /><br />
-    <input type="text" name="compliance-owner2-email" id="compliance-owner2-email" placeholder="{% trans "Email" %}" class="input" /><br />
-    
+    <br />
     <p class="error hide"></p>
+    <button id="test-chain" class="submit">测试</button>
     <button type="submit" class="submit">{% trans "Submit" %}</button>
 </form>
 
-{% if revisers %}
+{% if chain_list %}
 <table>
     <tr>
         <th width="30%">{% trans "Department" %}</th>
-        <th width="15%">{% trans "Line Manager" %}</th>
-        <th width="15%">{% trans "Department Head" %}</th>
-        <th width="15%">{% trans "Comanager Head" %}</th>
-        <th width="15%">{% trans "Compliance Owner" %}</th>
+        <th width="60%">审批链<span style="margin-left: 5px;">顺序审批（->）</span> <span>协同审批（|）</span></th>
         <th width="10%"><!--operation--></th>
     </tr>
-    {% for r in revisers %}
-    <tr data-dept_name="{{r.department_name}}" data-line_manager_name="{{ r.line_manager_name}}" data-line_manager_account="{{ r.line_manager_account}}" data-line_manager_email="{{ r.line_manager_email}}" data-department_head_name="{{ r.department_head_name}}" data-department_head_account="{{ r.department_head_account}}" data-department_head_email="{{ r.department_head_email}}" data-comanager_head_name="{{ r.comanager_head_name}}" data-comanager_head_account="{{ r.comanager_head_account}}" data-comanager_head_email="{{ r.comanager_head_email}}" data-compliance_owner_name="{{ r.compliance_owner_name}}" data-compliance_owner_account="{{ r.compliance_owner_account}}" data-compliance_owner_email="{{ r.compliance_owner_email}}" data-compliance_owner2_name="{{ r.compliance_owner2_name|default_if_none:""}}" data-compliance_owner2_account="{{ r.compliance_owner2_account|default_if_none:""}}" data-compliance_owner2_email="{{ r.compliance_owner2_email|default_if_none:""}}">
-        <td>{{ r.department_name }}</td>
-        <td>{{ r.line_manager_info|safe }}</td>
-        <td>{{ r.department_head_info|safe }}</td>
-        <td>{{ r.comanager_head_info|safe }}</td>
-        <td>{{ r.compliance_owner_info|safe }}</td>
+    {% for r in chain_list %}
+    <tr data-dept_name="{{r.department}}" data-chain="{{r.chain_raw}}">
+        <td>{{ r.department }}</td>
+        <td>{{ r.chain }}</td>
         <td>
           <a href="#" class="edit op vh">{% trans "Edit" %}</a>
-          <a href="#" data-url="{% url 'reviser_remove' r.id %}" class="remove op vh">{% trans "Delete" %}</a>
+          <a href="#" data-url="{% url "reviser_remove" r.department %}" class="remove op vh">{% trans "Delete" %}</a>
         </td>
     </tr>
     {% endfor %}
 </table>
 
-{% include "snippets/admin_paginator.html" %}
+<div id="paginator">
+    {% if current_page != 1 %}
+    <a href="?page={{ prev_page }}&per_page={{ per_page }}">{% trans "Previous" %}</a>
+    {% endif %}
+    {% if page_next %}
+    <a href="?page={{ next_page }}&per_page={{ per_page }}">{% trans "Next" %}</a>
+    {% endif %}
+</div>
+
 {% else %}
 <div class="empty-tips">
     <h2 class="alc">{% trans "No reviser has been added yet" %}</h2>
@@ -90,110 +72,71 @@
 
 {% block extra_script %}
 <script type="text/javascript">
+$('#test-chain').click(function() {
+    var form = $('#add-reviser-form'),
+        form_id = form.attr('id'),
+        department_name = $.trim(form.children('[name="department-name"]').val()),
+        chain = $.trim(form.children('[name="chain"]').val());
+
+    var data = {
+        'department_name': department_name,
+        'chain': chain
+    };
+
+    // reset color
+    $('#add-reviser-form .error').css('color', '');
+
+    $.ajax({
+        url: '{% url 'reviser_test' %}',
+        type: 'POST',
+        datatype: 'json',
+        cache: 'false',
+        beforeSend: prepareCSRFToken,
+        data: data,
+        success: function(data) {
+            var msg = '测试通过，以下审批链信息会被写入数据库：<br>';
+            msg += data.ret;
+
+            $('#add-reviser-form .error').html(msg).removeClass('hide').css('color', 'green');
+            $("#simplemodal-container").css({'height':'auto'});
+
+        },
+        error: function(jqXHR, textStatus, errorThrown) {
+            if (jqXHR.responseText) {
+                apply_form_error(form_id, $.parseJSON(jqXHR.responseText).error);
+            } else {
+                apply_form_error(form_id, "{% trans "Failed. Please check the network." %}");
+            }
+        }
+    });
+    return false;
+});
+
 $('#add-reviser-form').submit(function() {
     var form = $(this),
         form_id = $(this).attr('id'),
         submit_btn = $(this).find('[type="submit"]'),
 
         department_name = $.trim(form.children('[name="department-name"]').val()),
+        chain = $.trim(form.children('[name="chain"]').val());
 
-        line_manager_name = $.trim(form.children('[name="line-manager-name"]').val()),
-        line_manager_account = $.trim(form.children('[name="line-manager-account"]').val()),
-        line_manager_email = $.trim(form.children('[name="line-manager-email"]').val()),
-
-        department_head_name = $.trim(form.children('[name="department-head-name"]').val()),
-        department_head_account = $.trim(form.children('[name="department-head-account"]').val()),
-        department_head_email = $.trim(form.children('[name="department-head-email"]').val()),
-
-        comanager_head_name = $.trim(form.children('[name="comanager-head-name"]').val()),
-        comanager_head_account = $.trim(form.children('[name="comanager-head-account"]').val()),
-        comanager_head_email = $.trim(form.children('[name="comanager-head-email"]').val()),
-
-        compliance_owner_name = $.trim(form.children('[name="compliance-owner-name"]').val()),
-        compliance_owner_account = $.trim(form.children('[name="compliance-owner-account"]').val()),
-        compliance_owner_email = $.trim(form.children('[name="compliance-owner-email"]').val());
-
-        compliance_owner2_name = $.trim(form.children('[name="compliance-owner2-name"]').val()),
-        compliance_owner2_account = $.trim(form.children('[name="compliance-owner2-account"]').val()),
-        compliance_owner2_email = $.trim(form.children('[name="compliance-owner2-email"]').val());
+    // reset color
+    $('#add-reviser-form .error').css('color', '');
     
-    function validateEmail(email) {
-        var re = /^([\w-]+(?:\.[\w-]+)*)@((?:[\w-]+\.)*\w[\w-]{0,66})\.([a-z]{2,6}(?:\.[a-z]{2})?)$/i;
-        return re.test(email);
-    }
-
     // check department name
     if (!department_name) {
         apply_form_error(form_id, "{% trans "Department cannot be blank" %}");
         return false;
     }
 
-    // check line manager
-    if (!line_manager_email) {
-        apply_form_error(form_id, "{% trans "Line manager email cannot be blank" %}");
+    if (!chain) {
+        apply_form_error(form_id, "{% trans "Chain cannot be blank" %}");
         return false;
     }
-
-    if (!validateEmail(line_manager_email)) {
-        apply_form_error(form_id, "{% trans "Invalid email" %}");
-        return false;
-    }
-
-    // check department head
-    if (!department_head_email) {
-        apply_form_error(form_id, "{% trans "Department head email cannot be blank" %}");
-        return false;
-    }
-
-    if (!validateEmail(department_head_email)) {
-        apply_form_error(form_id, "{% trans "Invalid email" %}");
-        return false;
-    }
-
-    // check comanager head
-    if (!comanager_head_email) {
-        apply_form_error(form_id, "{% trans "Comanager head email cannot be blank" %}");
-        return false;
-    }
-
-    if (!validateEmail(comanager_head_email)) {
-        apply_form_error(form_id, "{% trans "Invalid email" %}");
-        return false;
-    }
-
-    // check comanager head
-    if (!compliance_owner_email) {
-        apply_form_error(form_id, "{% trans "Compliance owner email cannot be blank" %}");
-        return false;
-    }
-
-    if (!validateEmail(compliance_owner_email)) {
-        apply_form_error(form_id, "{% trans "Invalid email" %}");
-        return false;
-    }
-
+    
     var data = {
         'department_name': department_name,
-
-        'line_manager_name': line_manager_name,
-        'line_manager_account': line_manager_account,
-        'line_manager_email': line_manager_email,
-
-        'department_head_name': department_head_name,
-        'department_head_account': department_head_account,
-        'department_head_email': department_head_email,
-
-        'comanager_head_name': comanager_head_name,
-        'comanager_head_account': comanager_head_account,
-        'comanager_head_email': comanager_head_email,
-
-        'compliance_owner_name': compliance_owner_name,
-        'compliance_owner_account': compliance_owner_account,
-        'compliance_owner_email': compliance_owner_email,
-
-        'compliance_owner2_name': compliance_owner2_name,
-        'compliance_owner2_account': compliance_owner2_account,
-        'compliance_owner2_email': compliance_owner2_email
+        'chain': chain
     };
 
     disable(submit_btn);
@@ -221,61 +164,12 @@ $('#add-reviser-form').submit(function() {
 });
 $('#add-reviser-btn').click(function() {
     $('#add-reviser-form').find("input[type=text]").val("");
+    $('#chain', '#add-reviser-form').val("");
+
     $('#add-reviser-form').modal();
     $('#simplemodal-container').css({'width':'auto', 'height': 'auto'});
 });
 
-$('.edit').click(function() {
-    var dept_name = $($(this).closest('tr')).data('dept_name');
-
-    var line_manager_name = $($(this).closest('tr')).data('line_manager_name');
-    var line_manager_account = $($(this).closest('tr')).data('line_manager_account');
-    var line_manager_email = $($(this).closest('tr')).data('line_manager_email');
-
-    var department_head_name = $($(this).closest('tr')).data('department_head_name');
-    var department_head_account = $($(this).closest('tr')).data('department_head_account');
-    var department_head_email = $($(this).closest('tr')).data('department_head_email');
-
-    var comanager_head_name = $($(this).closest('tr')).data('comanager_head_name');
-    var comanager_head_account = $($(this).closest('tr')).data('comanager_head_account');
-    var comanager_head_email = $($(this).closest('tr')).data('comanager_head_email');
-
-    var compliance_owner_name = $($(this).closest('tr')).data('compliance_owner_name');
-    var compliance_owner_account = $($(this).closest('tr')).data('compliance_owner_account');
-    var compliance_owner_email = $($(this).closest('tr')).data('compliance_owner_email');
-
-    var compliance_owner2_name = $($(this).closest('tr')).data('compliance_owner2_name');
-    var compliance_owner2_account = $($(this).closest('tr')).data('compliance_owner2_account');
-    var compliance_owner2_email = $($(this).closest('tr')).data('compliance_owner2_email');
-    
-    // fill form value
-    $('#department-name', '#add-reviser-form').val(dept_name);
-
-    $('#line-manager-name', '#add-reviser-form').val(line_manager_name);
-    $('#line-manager-account', '#add-reviser-form').val(line_manager_account);
-    $('#line-manager-email', '#add-reviser-form').val(line_manager_email);
-
-    $('#department-head-name', '#add-reviser-form').val(department_head_name);
-    $('#department-head-account', '#add-reviser-form').val(department_head_account);
-    $('#department-head-email', '#add-reviser-form').val(department_head_email);
-
-    $('#comanager-head-name', '#add-reviser-form').val(comanager_head_name);
-    $('#comanager-head-account', '#add-reviser-form').val(comanager_head_account);
-    $('#comanager-head-email', '#add-reviser-form').val(comanager_head_email);
-
-    $('#compliance-owner-name', '#add-reviser-form').val(compliance_owner_name);
-    $('#compliance-owner-account', '#add-reviser-form').val(compliance_owner_account);
-    $('#compliance-owner-email', '#add-reviser-form').val(compliance_owner_email);
-
-    $('#compliance-owner2-name', '#add-reviser-form').val(compliance_owner2_name);
-    $('#compliance-owner2-account', '#add-reviser-form').val(compliance_owner2_account);
-    $('#compliance-owner2-email', '#add-reviser-form').val(compliance_owner2_email);
-    
-    $('#add-reviser-form').modal();
-    $('#simplemodal-container').css({'width':'auto', 'height': 'auto'});
-
-    return false;
-});
 
 addConfirmTo($('.remove'), {
     'title': "Remove reviser",
@@ -283,5 +177,18 @@ addConfirmTo($('.remove'), {
     'post': true
 });
 
+$('.edit').click(function() {
+    var dept_name = $($(this).closest('tr')).data('dept_name');
+    var chain = $($(this).closest('tr')).data('chain');
+
+    // fill form value
+    $('#department-name', '#add-reviser-form').val(dept_name);
+    $('#chain', '#add-reviser-form').val(chain);
+
+    $('#add-reviser-form').modal();
+    $('#simplemodal-container').css({'width':'auto', 'height': 'auto'});
+
+    return false;
+}); 
 </script>
 {% endblock %}

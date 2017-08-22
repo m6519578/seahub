@@ -5,10 +5,10 @@ PingAn Group related views functions.
 import logging
 import json
 import os
-from collections import OrderedDict
 
 from django.core.cache import cache
-from django.http import HttpResponse, HttpResponseRedirect
+from django.core.urlresolvers import reverse
+from django.http import HttpResponse, HttpResponseRedirect, Http404
 from django.shortcuts import render_to_response
 from django.template import RequestContext
 from django.utils import timezone
@@ -19,14 +19,14 @@ from django.contrib import messages
 from seahub.auth.decorators import login_required, login_required_ajax
 from seahub.base.decorators import user_mods_check, require_POST
 from seahub.base.templatetags.seahub_tags import email2nickname
-from seahub.profile.models import DetailedProfile
 from seahub.share.constants import STATUS_VERIFING, STATUS_PASS, STATUS_VETO
-from seahub.share.models import (FileShare, FileShareReviserChain,
-                                 FileShareVerify, FileShareDownloads,
-                                 FileShareReceiver, FileShareReviserMap,
-                                 FileShareExtraInfo)
+from seahub.share.models import (FileShare, FileShareDownloads,
+                                 FileShareReceiver,
+                                 FileShareExtraInfo, FileShareApprovalStatus,
+                                 get_chain_step_emails, get_chain_step_status,
+                                 get_chain_next_step)
 from seahub.share.share_link_checking import (
-    email_reviser, email_verify_result, get_reviser_info_by_user)
+    email_reviser, email_verify_result)
 from seahub.share.signals import file_shared_link_verify
 from seahub.utils import gen_token, send_html_email
 from seahub.utils.ms_excel import write_xls
@@ -35,166 +35,31 @@ from seahub.settings import SITE_ROOT
 # Get an instance of a logger
 logger = logging.getLogger(__name__)
 
-def list_share_links_by_reviser(username):
-    """List all share links by reviser name.
-    """
-    users = []
-
-    # 1. get users from revisermap
-    for e in FileShareReviserMap.objects.filter(reviser_email=username):
-        users.append(e.username)
-
-    # 2. get department list according to reviser chain table
-    dept_list = []
-    for e in FileShareReviserChain.objects.all():  # TODO: performance issue?
-        if e.line_manager_email == username or \
-           e.department_head_email == username or \
-           e.comanager_head_email == username or \
-           e.compliance_owner_email == username or \
-           e.compliance_owner2_email == username:
-            dept_list.append(e.department_name)
-
-    if dept_list:
-        # get all user list belong to those departments
-        for dept in dept_list:
-            for e in DetailedProfile.objects.filter(department=dept):
-                users.append(e.user)
-
-    users = list(set(users))
-    # get share link belong to those users
-    return FileShare.objects.filter(username__in=users).order_by('-ctime')[:100]
 
 def get_verify_link_by_user(username):
-    verifing_links = []
-    verified_links = []
+    verifing_links, verified_links = [], []
+    ret = FileShareApprovalStatus.objects.get_by_email(username)
+    for e in ret:
+        ele = e.share_link
+        ele.filename = os.path.basename(ele.path)
+        ele.shared_link = ele.get_full_url()
+        ele.first_dl_time = FileShareDownloads.objects.get_first_download_time(ele)
 
-    fileshares = list_share_links_by_reviser(username)
-
-    for fs in fileshares:
-        fs.filename = os.path.basename(fs.path)
-        fs.shared_link = fs.get_full_url()
-
-        if fs.expire_date is not None and timezone.now() > fs.expire_date:
-            fs.is_expired = True
-
-        try:
-            fs_verify = FileShareVerify.objects.get(share_link=fs)
-        except FileShareVerify.DoesNotExist as e:
-            logger.error(e)
-            continue
-
-        info = get_reviser_info_by_user(fs.username)
-        if info is None:
-            logger.error('No reviser info found for user: %s' % fs.username)
-            continue
-
-        user_pass = False
-        user_veto = False
-        if username == info.line_manager_email:
-            if fs_verify.line_manager_pass():
-                user_pass = True
-            if fs_verify.line_manager_veto():
-                user_veto = True
-
-            if fs_verify.line_manager_vtime:
-                fs.verify_time = fs_verify.line_manager_vtime
-
-        elif username == info.department_head_email:
-            if fs_verify.department_head_pass():
-                user_pass = True
-            if fs_verify.department_head_veto():
-                user_veto = True
-
-            if fs_verify.department_head_vtime:
-                fs.verify_time = fs_verify.department_head_vtime
-
-        elif username == info.comanager_head_email:
-            if fs_verify.comanager_head_pass():
-                user_pass = True
-            if fs_verify.comanager_head_veto():
-                user_veto = True
-
-            if fs_verify.comanager_head_vtime:
-                fs.verify_time = fs_verify.comanager_head_vtime
-
-        elif username == info.compliance_owner_email:
-            if fs_verify.compliance_owner_pass():
-                user_pass = True
-            if fs_verify.compliance_owner_veto():
-                user_veto = True
-
-            if fs_verify.compliance_owner_vtime:
-                fs.verify_time = fs_verify.compliance_owner_vtime
-
-        elif username == info.compliance_owner2_email:
-            if fs_verify.compliance_owner2_pass():
-                user_pass = True
-            if fs_verify.compliance_owner2_veto():
-                user_veto = True
-
-            if fs_verify.compliance_owner2_vtime:
-                fs.verify_time = fs_verify.compliance_owner2_vtime
-
-        if user_pass or user_veto:
-            fs.user_pass = user_pass
-            fs.user_veto = user_veto
-
-            if fs_verify.DLP_status == STATUS_VERIFING:
-                fs.DLP_status = _("verifing")
-            elif fs_verify.DLP_status == STATUS_PASS:
-                fs.DLP_status = _("pass")
-            elif fs_verify.DLP_status == STATUS_VETO:
-                fs.DLP_status = _("veto")
-
-            if fs_verify.DLP_vtime:
-                fs.DLP_vtime = fs_verify.DLP_vtime
-
-            fs.first_dl_time = FileShareDownloads.objects.get_first_download_time(fs)
-
-            if username == info.line_manager_email:
-                if fs_verify.line_manager_pass() or fs_verify.line_manager_veto():
-                    verified_links.append(fs)
-            elif username == info.department_head_email:
-                if fs_verify.department_head_pass() or fs_verify.department_head_veto():
-                    verified_links.append(fs)
-            elif username == info.comanager_head_email:
-                if fs_verify.comanager_head_pass() or fs_verify.comanager_head_veto():
-                    verified_links.append(fs)
-            elif username == info.compliance_owner_email:
-                if fs_verify.compliance_owner_pass() or fs_verify.compliance_owner_veto():
-                    verified_links.append(fs)
-            elif username == info.compliance_owner2_email:
-                if fs_verify.compliance_owner2_pass() or fs_verify.compliance_owner2_veto():
-                    verified_links.append(fs)
+        if e.status == STATUS_VERIFING:
+            if not e.share_link.is_verifing():  # share link is not verified by me
+                e.delete()
+                continue
+            else:
+                verifing_links.append(ele)
         else:
-            if username == info.line_manager_email:
-                if not fs_verify.dlp_verifying():
-                    verifing_links.append(fs)
-            elif username == info.department_head_email:
-                if fs_verify.line_manager_pass():
-                    verifing_links.append(fs)
-            elif username == info.comanager_head_email:
-                if fs_verify.line_manager_pass() \
-                   and fs_verify.department_head_pass():
-                    verifing_links.append(fs)
-            elif username == info.compliance_owner_email or \
-                username == info.compliance_owner2_email:
-                if fs_verify.line_manager_pass() \
-                   and fs_verify.department_head_pass() \
-                   and fs_verify.comanager_head_pass() \
-                   and fs.is_verifing():
-                    # Handle the case that com_owner 2 pass, which will add
-                    # this link to the list in com_owner1 .
-                    verifing_links.append(fs)
-
+            verified_links.append(ele)
     return verifing_links, verified_links
-
 
 @login_required
 @user_mods_check
 def list_file_share_verify(request):
     """List file links that need verify.
-    列出“待审批的外链”／“已审批的外链”：
+    列出审批员“待审批的外链”／“已审批的外链”：
 
 1. 从审批链（部门－部门长－稽核）里得到当前用户能审批的部门列表；--> dept_list
 2. 得到所有属于(dept_list)的成员（注意：精确到部门即可，基础架构部项目组和基础架构步系统组同属一个审批链）；--> users
@@ -208,10 +73,32 @@ def list_file_share_verify(request):
     username = request.user.username
     verifing_links, verified_links = get_verify_link_by_user(username)
 
+    cmp_func = lambda x, y: cmp(y.ctime, x.ctime)
+    verifing_links = sorted(verifing_links, cmp=cmp_func)
+    verified_links = sorted(verified_links, cmp=cmp_func)
+
     return render_to_response('share/links_verify.html', {
             "verifing_links": verifing_links,
             "verified_links": verified_links,
     }, context_instance=RequestContext(request))
+
+@login_required
+def remove_file_share_verify(request, sid):
+    username = request.user.username
+
+    try:
+        fs = FileShare.objects.get(pk=sid)
+    except FileShare.DoesNotExist:
+        raise Http404
+
+    fs_s = FileShareApprovalStatus.objects.filter(share_link=fs, email=username)
+    for ele in fs_s:
+        if ele.status != STATUS_VERIFING:
+            continue
+        ele.delete()
+
+    messages.success(request, _('Success'))
+    return HttpResponseRedirect(reverse('list_file_share_verify'))
 
 @login_required
 def export_verified_links(request):
@@ -230,26 +117,34 @@ def export_verified_links(request):
         _("Visits"),
         _("Link"),
     ]
-
     data_list = []
-    verifing_links, verified_links = get_verify_link_by_user(request.user.username)
+    username = request.user.username
+    verifing_links, verified_links = get_verify_link_by_user(username)
 
     for link in verified_links:
+        app_s = FileShareApprovalStatus.objects.get(share_link=link, email=username)
 
         pass_or_veto = '--'
-
-        if link.user_pass:
-            pass_or_veto = _("Pass")
-        elif link.user_veto:
-            pass_or_veto = _("Veto")
+        if app_s.status == STATUS_PASS:
+            pass_or_veto = _('Approved')
+        if app_s.status == STATUS_VETO:
+            pass_or_veto = _('Rejected')
 
         try:
-            verify_time = link.verify_time.strftime('%Y-%m-%d')
+            verify_time = app_s.vtime.strftime('%Y-%m-%d')
         except AttributeError:
             verify_time = '--'
 
+        dlp_s = FileShareApprovalStatus.objects.get_dlp_status_by_share_link(link)
+        if dlp_s.status == STATUS_PASS:
+            DLP_status = _('Approved')
+        elif dlp_s.status == STATUS_VETO:
+            DLP_status = _('Rejected')
+        else:
+            DLP_status = _('Verifing')
+
         try:
-            DLP_vtime = link.DLP_vtime.strftime('%Y-%m-%d')
+            DLP_vtime = dlp_s.vtime.strftime('%Y-%m-%d')
         except AttributeError:
             DLP_vtime = '--'
 
@@ -260,7 +155,7 @@ def export_verified_links(request):
             link.username,
             pass_or_veto,
             verify_time,
-            link.DLP_status,
+            DLP_status,
             DLP_vtime,
             link.ctime.strftime('%Y-%m-%d') if link.ctime else '--',
             link.expire_date.strftime('%Y-%m-%d') if link.expire_date else '--',
@@ -289,7 +184,7 @@ def export_verified_links(request):
 @require_POST
 def ajax_change_dl_link_status(request):
     """Approve or veto a shared link.
-    
+
     Arguments:
     - `request`:
     """
@@ -304,9 +199,7 @@ def ajax_change_dl_link_status(request):
     except ValueError:
         return HttpResponse({}, status=400, content_type=content_type)
 
-    msg = request.POST.get('msg', None)
-
-    if status not in (STATUS_VERIFING, STATUS_PASS, STATUS_VETO):
+    if status not in (STATUS_PASS, STATUS_VETO):
         return HttpResponse({}, status=400, content_type=content_type)
 
     try:
@@ -315,72 +208,64 @@ def ajax_change_dl_link_status(request):
         return HttpResponse({}, status=400, content_type=content_type)
 
     username = request.user.username
-    reviser_info = get_reviser_info_by_user(fileshare.username)
-    if reviser_info.compliance_owner2_email:
-        revisers = [] if reviser_info is None else [
-            reviser_info.line_manager_email, reviser_info.department_head_email,
-            reviser_info.comanager_head_email,
-            (reviser_info.compliance_owner_email, reviser_info.compliance_owner2_email)
-        ]
-    else:
-        revisers = [] if reviser_info is None else [
-            reviser_info.line_manager_email, reviser_info.department_head_email,
-            reviser_info.comanager_head_email, reviser_info.compliance_owner_email,
-        ]
-
-    is_reviser = False
-    for e in revisers:
-        if isinstance(e, basestring):
-            if username == e:
-                is_reviser = True
-        else:
-            for x in e:
-                if username == x:
-                    is_reviser = True
-
-    if not is_reviser:
+    chain = fileshare.get_approval_chain(flat=True)
+    if username not in chain:
         return HttpResponse({}, status=403, content_type=content_type)
 
+    # check whether it is approved/veto by me or others siblings
+    chain_status = FileShareApprovalStatus.objects.get_chain_status_by_share_link(fileshare)
+    for ele in chain_status:
+        emails = get_chain_step_emails(ele)
+        if username not in emails:
+            continue
+
+        # user is in current step ...
+        if get_chain_step_status(ele) != STATUS_VERIFING:
+            # and current step is already pass/veto
+            return HttpResponse({}, status=409, content_type=content_type)
+
+    # change status
+    msg = request.POST.get('msg', None)
     try:
-        FileShareVerify.objects.set_status(fileshare, status, username, msg=msg)
+        FileShareApprovalStatus.objects.set_status(fileshare, status, username, msg=msg)
     except ValueError:
         return HttpResponse({}, status=400, content_type=content_type)
 
+    # reset expiration time starts from now if pass verify
+    # also need to reset downloads counts
     if fileshare.pass_verify():
-        # reset expiration time starts from now
         new_expire_date = timezone.now() + (fileshare.expire_date - fileshare.ctime)
         fileshare.expire_date = new_expire_date
         fileshare.save()
+
+        FileShareDownloads.objects.filter(share_link=fileshare).delete()
+
         # send email to share link receivers
         try:
             fileshare.email_receivers()
         except Exception as e:
             logger.error(e)
 
-    # email next reviser in revisers chain if current reviser approved
-    next_reviser = None
-    new_l = list(OrderedDict.fromkeys(revisers))  # remove deuplicated emails and keep order
-    for idx, elem in enumerate(new_l):
-        if elem == username and idx < len(new_l) - 1:
-            next_reviser = new_l[idx + 1]
-            break
+    # get emails in next step
+    next_revisers = []
+    chain_status_list = FileShareApprovalStatus.objects.get_chain_status_by_share_link(fileshare)
+    next_step = get_chain_next_step(chain_status_list, username)
+    if next_step is not None:
+        next_revisers = get_chain_step_emails(next_step)
 
-    if status == STATUS_PASS and next_reviser is not None:
-        if isinstance(next_reviser, tuple):
-            for e in next_reviser:
-                # send notice first
-                file_shared_link_verify.send(sender=None,
-                                             from_user=fileshare.username,
-                                             to_user=e,
-                                             token=fileshare.token)
-                email_reviser(fileshare, e)
-        else:
+    # email next reviser in revisers chain if current reviser approved
+    if status == STATUS_PASS and len(next_revisers) > 0:
+        for e in next_revisers:
+            # add default approval status
+            FileShareApprovalStatus.objects.set_status(
+                fileshare, status=STATUS_VERIFING, username=e)
+
             # send notice first
             file_shared_link_verify.send(sender=None,
                                          from_user=fileshare.username,
-                                         to_user=next_reviser,
+                                         to_user=e,
                                          token=fileshare.token)
-            email_reviser(fileshare, next_reviser)
+            email_reviser(fileshare, e)
 
     # email verify result to shared link owner
     email_verify_result(fileshare, fileshare.username,
@@ -451,24 +336,24 @@ def ajax_remind_revisers(request):
     if fileshare.username != request.user.username:
         return HttpResponse({}, status=403, content_type=content_type)
 
-    reviser_info = get_reviser_info_by_user(fileshare.username)
-    fs_v = FileShareVerify.objects.get(share_link=fileshare)
-
+    chain_status_list = FileShareApprovalStatus.objects.get_chain_status_by_share_link(fileshare)
     send_to = []
-    if fs_v.line_manager_verifying():
-        send_to.append(reviser_info.line_manager_email)
-    elif fs_v.department_head_verifying():
-        send_to.append(reviser_info.department_head_email)
-    elif fs_v.comanager_head_verifying():
-        send_to.append(reviser_info.comanager_head_email)
-    elif (fs_v.compliance_owner_verifying() and fs_v.compliance_owner2_verifying):
-        send_to.append(reviser_info.compliance_owner_email)
-        if reviser_info.compliance_owner2_email:
-            send_to.append(reviser_info.compliance_owner2_email)
-    else:
-        return HttpResponse({}, status=400, content_type=content_type)
+    for step in chain_status_list[1:]:
+        if get_chain_step_status(step) == STATUS_VERIFING:
+            send_to = get_chain_step_emails(step)
+            break
 
     for x in send_to:
+        # add default approval status if possible
+        FileShareApprovalStatus.objects.set_status(
+            fileshare, status=STATUS_VERIFING, username=x)
+
+        # send notice first
+        file_shared_link_verify.send(sender=None,
+                                     from_user=fileshare.username,
+                                     to_user=x,
+                                     token=fileshare.token)
+
         email_reviser(fileshare, x)
         logger.info('An remind email sent to %s triggered by user %s' % (
             x, fileshare.username))
@@ -545,8 +430,8 @@ def ajax_get_link_status(request):
     if fs.username != request.user.username:
         return HttpResponse({}, status=403, content_type=content_type)
 
-    fs_v = FileShareVerify.objects.get_verbose_status(fs)
-    if fs_v is None:
+    fs_v = fs.get_verbose_status()
+    if not fs_v:
         return HttpResponse(json.dumps({
             'error': _('No revisers found. Please contact system admin.')
         }), status=400, content_type=content_type)

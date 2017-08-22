@@ -383,6 +383,8 @@ if TRAFFIC_STATS_ENABLED:
 
 ########################### Start PingAn Group related ######################
 from seahub.views.sysadmin_pingan import *
+from seahub.share.api import ApprovalChainView
+
 urlpatterns += patterns(
     '',
     url(r'^sys/reviseradmin/$', sys_reviser_admin, name='sys_reviser_admin'),
@@ -395,10 +397,15 @@ urlpatterns += patterns(
     url(r'^sys/ajax-get-upload-files-info/$', ajax_get_upload_files_info, name='ajax_get_upload_files_info'),
     url(r'^sys/links-report/export-excel/$', sys_links_report_export_excel, name='sys_links_report_export_excel'),
     url(r'^reviseradmin/add/$', reviser_add, name="reviser_add"),
+    url(r'^reviseradmin/test/$', reviser_test, name="reviser_test"),
     url(r'^reviseradmin/map-add/$', reviser_map_add, name="reviser_map_add"),
     url(r'^reviseradmin/verify-ignore-add/$', verify_ignore_add, name="verify_ignore_add"),
-    url(r'^reviseradmin/remove/(?P<reviser_info_id>\d+)/$', reviser_remove, name="reviser_remove"),
+    url(r'^reviseradmin/remove/(?P<dept>[^/].+)/$', reviser_remove, name="reviser_remove"),
     url(r'^reviseradmin/map-remove/(?P<reviser_info_id>\d+)/$', reviser_map_remove, name="reviser_map_remove"),
     url(r'^reviseradmin/verify-ignore-remove/(?P<pk>\d+)/$', verify_ignore_remove, name="verify_ignore_remove"),
+    url(r'^api/v2.1/admin/approval-chain/$', ApprovalChainView.as_view(), name='api-v2.1-approval-chain'),
 )
 ########################### End PingAn Group related ########################
+
+
+

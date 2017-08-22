@@ -880,16 +880,16 @@ def user_info(request, email):
             g.role = _('Member')
 
 ######################### Start PingAn Group related ########################
-    from seahub.share.models import (FileShareVerifyIgnore, FileShareReviserMap, FileShareReviserChain)
+    from seahub.share.models import (FileShareVerifyIgnore, FileShareReviserMap, ApprovalChain, approval_chain_list2str)
     approving_chain_info = None
 
     # department relationship third priority
     d_profile = DetailedProfile.objects.get_detailed_profile_by_user(email)
     if d_profile:
-        res = FileShareReviserChain.objects.filter(department_name=d_profile.department)
-        if len(res) > 0:
-            row = res[0]
-            approving_chain_info = _('Department approving chain: %s.') % row
+        chain = ApprovalChain.objects.get_by_department(d_profile.department)
+        if chain:
+            msg = "%s <-> %s" % (d_profile.department, approval_chain_list2str(chain))
+            approving_chain_info = _('Department approving chain: %s.') % msg
 
     # user map second priority
     r_map = FileShareReviserMap.objects.filter(username=email)

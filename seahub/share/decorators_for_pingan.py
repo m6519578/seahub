@@ -8,16 +8,17 @@ from django.utils.http import urlquote
 from django.utils.translation import ugettext as _
 
 from seahub.auth import REDIRECT_FIELD_NAME
+from seahub.base.templatetags.seahub_tags import email2nickname
+from seahub.share.constants import STATUS_VETO, STATUS_PASS
 from seahub.share.models import (FileShare, set_share_link_access,
-                                 check_share_link_access, FileShareVerify,
-                                 FileShareExtraInfo)
+                                 check_share_link_access, FileShareExtraInfo,
+                                 FileShareApprovalStatus, get_chain_step_sibling_type)
 from seahub.share.forms import SharedLinkPasswordForm, CaptchaSharedLinkPasswordForm
 from seahub.share.utils import (incr_share_link_decrypt_failed_attempts,
                                 clear_share_link_decrypt_failed_attempts,
                                 show_captcha_share_link_password_form,
                                 enable_share_link_verify_code,
                                 get_unusable_verify_code)
-from seahub.share.share_link_checking import get_reviser_info_by_user
 from seahub.utils import render_error
 from seahub.utils.ip import get_remote_ip
 
@@ -30,15 +31,8 @@ def share_link_approval_for_pingan(func):
         req_user = request.user.username
         fileshare = get_object_or_404(FileShare, token=token)
 
-        ignore_list = []
-        info = get_reviser_info_by_user(fileshare.username)
-        if info is not None:
-            ignore_list = [info.line_manager_email, info.department_head_email,
-                           info.comanager_head_email, info.compliance_owner_email]
-            if info.compliance_owner2_email:
-                ignore_list.append(info.compliance_owner2_email)
-
-        if fileshare.pass_verify() and req_user not in ignore_list:
+        chain = fileshare.get_approval_chain(flat=True)
+        if fileshare.pass_verify() and req_user not in chain:
             if fileshare.is_expired():
                 raise Http404
 
@@ -53,60 +47,55 @@ def share_link_approval_for_pingan(func):
         need_verify = False
 
         user_pass, user_veto = False, False
-        other_pass, other_veto, other_info = False, False, None
+        show_dlp_veto_msg, other_pass, other_veto, other_info = False, False, False, None
         if request.user.is_anonymous():
             # show login page
             path = urlquote(request.get_full_path())
             tup = settings.LOGIN_URL, REDIRECT_FIELD_NAME, path
             return HttpResponseRedirect('%s?%s=%s' % tup)
         else:
-            if info is None:
+            if len(chain) == 0:
                 return render_error(request, _(u'权限不足：你无法访问该文件。'))
 
-            fs_v = FileShareVerify.objects.get(share_link=fileshare)
-            if req_user == info.line_manager_email:
-                if fs_v.line_manager_pass():
-                    user_pass = True
-                if fs_v.line_manager_veto():
-                    user_veto = True
-
-            elif req_user == info.department_head_email:
-                if fs_v.department_head_pass():
-                    user_pass = True
-                if fs_v.department_head_veto():
-                    user_veto = True
-
-            elif req_user == info.comanager_head_email:
-                if fs_v.comanager_head_pass():
-                    user_pass = True
-                if fs_v.comanager_head_veto():
-                    user_veto = True
-
-            elif req_user == info.compliance_owner_email:
-                if fs_v.compliance_owner_pass():
-                    user_pass = True
-                if fs_v.compliance_owner_veto():
-                    user_veto = True
-                if fs_v.compliance_owner2_pass():
-                    other_pass = True
-                    other_info = '%s (%s)' % (info.compliance_owner2_name, info.compliance_owner2_email)
-                if fs_v.compliance_owner2_veto():
-                    other_veto = True
-                    other_info = '%s (%s)' % (info.compliance_owner2_name, info.compliance_owner2_email)
-
-            elif req_user == info.compliance_owner2_email:
-                if fs_v.compliance_owner2_pass():
-                    user_pass = True
-                if fs_v.compliance_owner2_veto():
-                    user_veto = True
-                if fs_v.compliance_owner_pass():
-                    other_pass = True
-                    other_info = '%s (%s)' % (info.compliance_owner_name, info.compliance_owner_email)
-                if fs_v.compliance_owner_veto():
-                    other_veto = True
-                    other_info = '%s (%s)' % (info.compliance_owner_name, info.compliance_owner_email)
-            else:
+            if req_user not in chain:
                 return render_error(request, _(u'权限不足：你无法访问该文件。'))
+
+            chain_status_list = FileShareApprovalStatus.objects.\
+                                get_chain_status_by_share_link(fileshare)
+            show_dlp_veto_msg = chain_status_list[0].status == STATUS_VETO
+
+            for obj in chain_status_list:
+                if get_chain_step_sibling_type(obj):  # siblings
+                    sibling_type = obj[0]  # can be 'op_or' or 'op_and'
+                    siblings = obj[1:]
+                    if req_user not in [x.email for x in siblings]:
+                        # request user is not in current step, go to next step
+                        continue
+
+                    # User is in the current step, find the sibling who
+                    # approve or reject.
+                    target_sibling = None
+                    for sibling_obj in siblings:
+                        if sibling_obj.status == STATUS_PASS or \
+                           sibling_obj.status == STATUS_VETO:
+                            target_sibling = sibling_obj
+
+                    if target_sibling is not None:
+                        if req_user == target_sibling.email:
+                            # approved or rejected by me
+                            user_pass = target_sibling.status == STATUS_PASS
+                            user_veto = target_sibling.status == STATUS_VETO
+                        else:
+                            # approved or rejected by others
+                            other_pass = target_sibling.status == STATUS_PASS
+                            other_veto = target_sibling.status == STATUS_VETO
+                            other_info = '%s (%s)' % (
+                                email2nickname(target_sibling.email),
+                                target_sibling.email)
+                else:  # no siblings
+                    if req_user == obj.email:
+                        user_pass = obj.status == STATUS_PASS
+                        user_veto = obj.status == STATUS_VETO
 
             skip_encrypted = True
             need_verify = True
@@ -127,7 +116,7 @@ def share_link_approval_for_pingan(func):
                 'other_info': other_info,
                 'share_to': share_to,
                 'note': note,
-                'show_dlp_veto_msg': fs_v.dlp_veto(),
+                'show_dlp_veto_msg': show_dlp_veto_msg,
             })
             return func(request, fileshare, *args, **kwargs)
 

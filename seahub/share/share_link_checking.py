@@ -5,7 +5,6 @@
 import os
 import logging
 import string
-from collections import namedtuple
 
 from django.utils import translation
 from django.utils.translation import ugettext as _
@@ -13,9 +12,9 @@ from django.utils.translation import ugettext as _
 from .settings import (FUSE_MOUNT_POINT, DLP_SCAN_POINT,
                        ENABLE_FILESHARE_DLP_CHECK)
 from seahub.profile.models import Profile, DetailedProfile
-from seahub.share.constants import STATUS_PASS
-from seahub.share.models import (FileShareVerify, FileShareReviserChain,
-                                 FileShareReviserMap, FileShareVerifyIgnore)
+from seahub.share.constants import STATUS_PASS, STATUS_VETO
+from seahub.share.models import (FileShareReviserMap, FileShareApprovalChain,
+                                 ApprovalChain, FileShareApprovalStatus)
 from seahub.utils import get_service_url, send_html_email
 
 # Get an instance of a logger
@@ -49,18 +48,17 @@ def check_share_link(request, fileshare, repo):
     """
     username = request.user.username
 
-    fs_v = FileShareVerify(share_link=fileshare)
+    # record share link approval info
+    FileShareApprovalChain.objects.create_fs_approval_chain(fileshare)
+
+    # set default DLP status
+    fs_v = FileShareApprovalStatus(share_link=fileshare,
+                                   email=FileShareApprovalStatus.DLP_EMAIL)
 
     if not ENABLE_FILESHARE_DLP_CHECK:
         # dlp is disabled, pass
+        # TODO: notify next revisers ?
         fs_v.DLP_status = STATUS_PASS
-
-    if FileShareVerifyIgnore.objects.filter(username=fileshare.username).exists():
-        # this user is ignored for verify, pass
-        fs_v.line_manager_status = STATUS_PASS
-        fs_v.department_head_status = STATUS_PASS
-        fs_v.comanager_head_status = STATUS_PASS
-        fs_v.compiance_owner_status = STATUS_PASS
 
     fs_v.save()
 
@@ -70,17 +68,9 @@ def check_share_link(request, fileshare, repo):
 def is_file_link_reviser(username):
     """Check whether a user is a reviser.
     """
-    all_revisers = []
-
-    all_reviser_info = FileShareReviserChain.objects.all()  # TODO: performance issue ?
-    for info in all_reviser_info:
-        all_revisers.append(info.line_manager_email)
-        all_revisers.append(info.department_head_email)
-        all_revisers.append(info.comanager_head_email)
-        all_revisers.append(info.compliance_owner_email)
-        if info.compliance_owner2_email:
-            all_revisers.append(info.compliance_owner2_email)
-
+    all_revisers = ApprovalChain.objects.get_emails()
+    all_revisers += FileShareApprovalChain.objects.values_list('email',
+                                                               flat=True)
     all_revisers += FileShareReviserMap.objects.values_list('reviser_email',
                                                             flat=True)
 
@@ -92,10 +82,11 @@ def email_reviser(fileshare, reviser_email):
     If DLP veto, show veto message to revisers.
     """
     subject = _('Please verify new share link.')
-    try:
-        fs_verify = FileShareVerify.objects.get(share_link=fileshare)
-        show_dlp_veto_msg = fs_verify.dlp_veto()
-    except FileShareVerify.DoesNotExist:
+
+    app_status = FileShareApprovalStatus.objects.get_dlp_status_by_share_link(fileshare)
+    if app_status is not None:
+        show_dlp_veto_msg = app_status == STATUS_VETO
+    else:
         show_dlp_veto_msg = False
 
     c = {
@@ -143,76 +134,78 @@ def email_verify_result(fileshare, email_to, source='DLP', result_code=1):
     # restore current language
     translation.activate(cur_language)
 
-def get_reviser_info_by_user(username):
-    """Get revisers info(username, account, email) by username.
-    First looking to ``FileShareReviserMap``, return result if found, otherwise
-    use department relations in ``FileShareReviserChain``.
-    """
-    r_info = namedtuple('ReviserInfo', [
-        'line_manager_name', 'line_manager_account', 'line_manager_email',
-        'department_head_name', 'department_head_account', 'department_head_email',
-        'comanager_head_name', 'comanager_head_account', 'comanager_head_email',
-        'compliance_owner_name', 'compliance_owner_account', 'compliance_owner_email',
-        'compliance_owner2_name', 'compliance_owner2_account', 'compliance_owner2_email',
-    ])
+# def get_reviser_info_by_user(username):
+#     """Get revisers info(username, account, email) by username.
+#     First looking to ``FileShareReviserMap``, return result if found, otherwise
+#     use department relations in ``FileShareReviserChain``.
+#     """
+#     r_info = namedtuple('ReviserInfo', [
+#         'line_manager_name', 'line_manager_account', 'line_manager_email',
+#         'department_head_name', 'department_head_account', 'department_head_email',
+#         'comanager_head_name', 'comanager_head_account', 'comanager_head_email',
+#         'compliance_owner_name', 'compliance_owner_account', 'compliance_owner_email',
+#         'compliance_owner2_name', 'compliance_owner2_account', 'compliance_owner2_email',
+#     ])
 
-    r_map = FileShareReviserMap.objects.filter(username=username)
-    if len(r_map) > 0:
-        ret = r_info(
-            line_manager_name=r_map[0].reviser_name,
-            line_manager_account=r_map[0].reviser_account,
-            line_manager_email=r_map[0].reviser_email,
-            department_head_name=r_map[0].reviser_name,
-            department_head_account=r_map[0].reviser_account,
-            department_head_email=r_map[0].reviser_email,
-            comanager_head_name=r_map[0].reviser_name,
-            comanager_head_account=r_map[0].reviser_account,
-            comanager_head_email=r_map[0].reviser_email,
-            compliance_owner_name=r_map[0].reviser_name,
-            compliance_owner_account=r_map[0].reviser_account,
-            compliance_owner_email=r_map[0].reviser_email,
-            compliance_owner2_name=r_map[0].reviser_name,
-            compliance_owner2_account=r_map[0].reviser_account,
-            compliance_owner2_email=r_map[0].reviser_email)
-        return ret
+#     r_map = FileShareReviserMap.objects.filter(username=username)
+#     if len(r_map) > 0:
+#         ret = r_info(
+#             line_manager_name=r_map[0].reviser_name,
+#             line_manager_account=r_map[0].reviser_account,
+#             line_manager_email=r_map[0].reviser_email,
+#             department_head_name=r_map[0].reviser_name,
+#             department_head_account=r_map[0].reviser_account,
+#             department_head_email=r_map[0].reviser_email,
+#             comanager_head_name=r_map[0].reviser_name,
+#             comanager_head_account=r_map[0].reviser_account,
+#             comanager_head_email=r_map[0].reviser_email,
+#             compliance_owner_name=r_map[0].reviser_name,
+#             compliance_owner_account=r_map[0].reviser_account,
+#             compliance_owner_email=r_map[0].reviser_email,
+#             compliance_owner2_name=r_map[0].reviser_name,
+#             compliance_owner2_account=r_map[0].reviser_account,
+#             compliance_owner2_email=r_map[0].reviser_email)
+#         return ret
 
-    d_profile = DetailedProfile.objects.get_detailed_profile_by_user(username)
-    if not d_profile:
-        logger.error('No detailed profile(department, ... etc) found for user %s' % username)
-        return None
+#     d_profile = DetailedProfile.objects.get_detailed_profile_by_user(username)
+#     if not d_profile:
+#         logger.error('No detailed profile(department, ... etc) found for user %s' % username)
+#         return None
 
-    res = FileShareReviserChain.objects.filter(department_name=d_profile.department)
-    if len(res) == 0:
-        logger.error('No reviser info found for user: %s' % username)
-        return None
-    elif len(res) > 1:
-        logger.error('Duplicated reviser info found for department: %s' % d_profile.department)
-        row = res[0]
-    else:
-        row = res[0]
+#     res = FileShareReviserChain.objects.filter(department_name=d_profile.department)
+#     if len(res) == 0:
+#         logger.error('No reviser info found for user: %s' % username)
+#         return None
+#     elif len(res) > 1:
+#         logger.error('Duplicated reviser info found for department: %s' % d_profile.department)
+#         row = res[0]
+#     else:
+#         row = res[0]
 
-    if not row.line_manager_email or \
-       not row.department_head_email or \
-       not row.comanager_head_email or \
-       not row.compliance_owner_email:
-        logger.error('Email is empty in chain: %s' % row)
+#     if not row.line_manager_email or \
+#        not row.department_head_email or \
+#        not row.comanager_head_email or \
+#        not row.compliance_owner_email:
+#         logger.error('Email is empty in chain: %s' % row)
 
-    ret = r_info(
-        line_manager_name=row.line_manager_name,
-        line_manager_account=row.line_manager_account,
-        line_manager_email=row.line_manager_email,
-        department_head_name=row.department_head_name,
-        department_head_account=row.department_head_account,
-        department_head_email=row.department_head_email,
-        comanager_head_name=row.comanager_head_name,
-        comanager_head_account=row.comanager_head_account,
-        comanager_head_email=row.comanager_head_email,
-        compliance_owner_name=row.compliance_owner_name,
-        compliance_owner_account=row.compliance_owner_account,
-        compliance_owner_email=row.compliance_owner_email,
-        compliance_owner2_name=row.compliance_owner2_name,
-        compliance_owner2_account=row.compliance_owner2_account,
-        compliance_owner2_email=row.compliance_owner2_email,
-    )
+#     ret = r_info(
+#         line_manager_name=row.line_manager_name,
+#         line_manager_account=row.line_manager_account,
+#         line_manager_email=row.line_manager_email,
+#         department_head_name=row.department_head_name,
+#         department_head_account=row.department_head_account,
+#         department_head_email=row.department_head_email,
+#         comanager_head_name=row.comanager_head_name,
+#         comanager_head_account=row.comanager_head_account,
+#         comanager_head_email=row.comanager_head_email,
+#         compliance_owner_name=row.compliance_owner_name,
+#         compliance_owner_account=row.compliance_owner_account,
+#         compliance_owner_email=row.compliance_owner_email,
+#         compliance_owner2_name=row.compliance_owner2_name,
+#         compliance_owner2_account=row.compliance_owner2_account,
+#         compliance_owner2_email=row.compliance_owner2_email,
+#     )
 
-    return ret
+#     return ret
+
+

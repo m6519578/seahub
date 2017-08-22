@@ -1273,7 +1273,7 @@ def ajax_get_download_link(request):
                     else:
                         status_str = fs.get_status_str() + \
                                      u'<a href="%s">查看详情。</a>' % reverse('list_shared_links')
-                        if fs.get_verbose_status() is None:
+                        if not fs.get_verbose_status():
                             status_str = _('No revisers found. Please contact system admin.')
 
                         data = json.dumps({'token': '',
