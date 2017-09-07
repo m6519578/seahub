@@ -14,6 +14,7 @@ from django.shortcuts import render_to_response
 from django.template import RequestContext
 from django.template.defaultfilters import filesizeformat
 from django.template.loader import render_to_string
+from django.utils import translation
 from django.utils.translation import ugettext as _
 
 from seahub.base.accounts import User
@@ -23,7 +24,7 @@ from seahub.auth.decorators import login_required, login_required_ajax
 from seahub.utils import gen_shared_upload_link, is_valid_email
 from seahub.utils.ms_excel import write_xls
 from seahub.share.models import FileShare, UploadLinkShare, \
-    UploadLinkShareUploads, FileShareDownloads, \
+    UploadLinkShareUploads, FileShareDownloads, FileShareExtraInfo, \
     FileShareReviserMap, FileShareVerifyIgnore, ApprovalChain, \
     approval_chain_str2list, approval_chain_list2str, FileShareApprovalStatus,\
     get_chain_step_sibling_type
@@ -477,7 +478,7 @@ def sys_download_links_report(request):
 
     start = per_page * (current_page - 1)
     end = per_page * (current_page - 1) + per_page + 1
-    links = FileShare.objects.list_file_links()[start: end]
+    links = FileShare.objects.list_file_links().order_by('-ctime')[start: end]
 
     if len(links) == per_page + 1:
         page_next = True
@@ -512,7 +513,7 @@ def sys_upload_links_report(request):
 
     start = per_page * (current_page - 1)
     end = per_page * (current_page - 1) + per_page + 1
-    links = UploadLinkShare.objects.all()[start: end]
+    links = UploadLinkShare.objects.all().order_by('-ctime')[start: end]
 
     if len(links) == per_page + 1:
         page_next = True
@@ -534,12 +535,102 @@ def sys_upload_links_report(request):
     return render_to_response(template_name, result_dict,
                               context_instance=RequestContext(request))
 
+def download_links_excel_report(download_links):
+    head = [
+        _("Name"),
+        _("From"),
+        u"发送对象",
+        _("Status"),
+        _("Created at"),
+        _("First Download Time"),
+        _("Downloads"),
+        _("Expiration"),
+        _("Link"),
+        _("DLP Status"),
+        _("Time"),
+
+        _("Email"),
+        _("Status"),
+        _("Time"),
+    ]
+
+    data_list = []
+
+    download_links = prepare_download_links(download_links)
+    status_dict = {
+        STATUS_VERIFING: _('verifing'),
+        STATUS_PASS: _('pass'),
+        STATUS_VETO: _('veto')
+    }
+    for d_link in download_links:
+        app_status = FileShareApprovalStatus.objects.get_chain_status_by_share_link(d_link)
+        if not app_status:
+            continue
+
+        fs_info = FileShareExtraInfo.objects.filter(share_link=d_link)
+        if len(fs_info) == 0:
+            receivers = ''
+        else:
+            receivers = ','.join([x.sent_to for x in fs_info])
+
+        # prepare excel data
+        row = [d_link.filename, d_link.username, receivers,
+               d_link.get_short_status_str(),
+               d_link.ctime.strftime('%Y-%m-%d'),
+               d_link.first_dl_time.strftime('%Y-%m-%d') if d_link.first_dl_time else '--',
+               d_link.dl_cnt,
+               d_link.expire_date.strftime('%Y-%m-%d') if d_link.expire_date else '--',
+               d_link.shared_link,
+        ]
+
+        # 1. get DLP verify status
+        DLP_status = '--'
+        DLP_vtime = '--'
+        DLP_status = status_dict.get(app_status[0].status, '')
+        if app_status[0].vtime:
+            DLP_vtime = app_status[0].vtime.strftime('%Y-%m-%d')
+
+        row.append(DLP_status)
+        row.append(DLP_vtime)
+
+        # 2. get people verify status
+        for ele in app_status[1:]:
+            people_email = '--'
+            people_status = '--'
+            people_vtime = '--'
+
+            if get_chain_step_sibling_type(ele):
+                for x in ele[1:]:
+                    people_email = x.email
+                    people_status = status_dict.get(x.status, '')
+                    if x.vtime:
+                        people_vtime = x.vtime.strftime('%Y-%m-%d')
+
+                    row.append(people_email)
+                    row.append(people_status)
+                    row.append(people_vtime)
+            else:
+                people_email = ele.email
+                people_status = status_dict.get(ele.status, '')
+                if ele.vtime:
+                    people_vtime = ele.vtime.strftime('%Y-%m-%d')
+
+                row.append(people_email)
+                row.append(people_status)
+                row.append(people_vtime)
+
+        data_list.append(row)
+    return (head, data_list)
+
 @login_required
 @sys_staff_required
 def sys_links_report_export_excel(request):
     """export links to excel.
     """
     next = request.META.get('HTTP_REFERER', None)
+    # save current language
+    cur_language = translation.get_language()
+    translation.activate('zh-cn')
 
     search_user = request.GET.get('search_user', None)
     link_type = request.GET.get('type', 'download')
@@ -547,88 +638,12 @@ def sys_links_report_export_excel(request):
         if not next:
             next = reverse(sys_download_links_report)
 
-        head = [
-            _("Name"),
-            _("From"),
-            _("Status"),
-            _("Created at"),
-            _("First Download Time"),
-            _("Downloads"),
-            _("Expiration"),
-            _("Link"),
-            _("DLP Status"),
-            _("Time"),
-
-            _("Email"),
-            _("Status"),
-            _("Time"),
-        ]
-
-        data_list = []
         if search_user:
             download_links = FileShare.objects.filter(username__contains=search_user).filter(s_type='f')
         else:
             download_links = FileShare.objects.filter(s_type='f')
 
-        download_links = prepare_download_links(download_links)
-        status_dict = {
-            STATUS_VERIFING: _('verifing'),
-            STATUS_PASS: _('pass'),
-            STATUS_VETO: _('veto')
-        }
-        for d_link in download_links:
-            app_status = FileShareApprovalStatus.objects.get_chain_status_by_share_link(d_link)
-            if not app_status:
-                continue
-
-            # prepare excel data
-            row = [d_link.filename, d_link.username,
-                   d_link.get_short_status_str(),
-                   d_link.ctime.strftime('%Y-%m-%d'),
-                   d_link.first_dl_time.strftime('%Y-%m-%d') if d_link.first_dl_time else '--',
-                   d_link.dl_cnt,
-                   d_link.expire_date.strftime('%Y-%m-%d') if d_link.expire_date else '--',
-                   d_link.shared_link,
-            ]
-
-            # 1. get DLP verify status
-            DLP_status = '--'
-            DLP_vtime = '--'
-            DLP_status = status_dict.get(app_status[0].status, '')
-            if app_status[0].vtime:
-                DLP_vtime = app_status[0].vtime.strftime('%Y-%m-%d')
-
-            row.append(DLP_status)
-            row.append(DLP_vtime)
-
-            # 2. get people verify status
-            for ele in app_status[1:]:
-                people_email = '--'
-                people_status = '--'
-                people_vtime = '--'
-
-                if get_chain_step_sibling_type(ele):
-                    for x in ele[1:]:
-                        people_email = x.email
-                        people_status = status_dict.get(x.status, '')
-                        if x.vtime:
-                            people_vtime = x.vtime.strftime('%Y-%m-%d')
-
-                        row.append(people_email)
-                        row.append(people_status)
-                        row.append(people_vtime)
-                else:
-                    people_email = ele.email
-                    people_status = status_dict.get(ele.status, '')
-                    if ele.vtime:
-                        people_vtime = ele.vtime.strftime('%Y-%m-%d')
-
-                    row.append(people_email)
-                    row.append(people_status)
-                    row.append(people_vtime)
-
-            data_list.append(row)
-
+        head, data_list = download_links_excel_report(download_links)
         wb = write_xls(_('download links'), head, data_list)
         response = HttpResponse(content_type='application/ms-excel')
         response['Content-Disposition'] = 'attachment; filename=download-links.xls'
@@ -698,4 +713,8 @@ def sys_links_report_export_excel(request):
         return HttpResponseRedirect(next)
 
     wb.save(response)
+
+    # restore current language
+    translation.activate(cur_language)
+
     return response

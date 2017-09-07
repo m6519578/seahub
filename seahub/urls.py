@@ -383,7 +383,7 @@ if TRAFFIC_STATS_ENABLED:
 
 ########################### Start PingAn Group related ######################
 from seahub.views.sysadmin_pingan import *
-from seahub.share.api import ApprovalChainView
+from seahub.share.api import ApprovalChainView, SysDownloadLinksReport
 
 urlpatterns += patterns(
     '',
@@ -404,6 +404,7 @@ urlpatterns += patterns(
     url(r'^reviseradmin/map-remove/(?P<reviser_info_id>\d+)/$', reviser_map_remove, name="reviser_map_remove"),
     url(r'^reviseradmin/verify-ignore-remove/(?P<pk>\d+)/$', verify_ignore_remove, name="verify_ignore_remove"),
     url(r'^api/v2.1/admin/approval-chain/$', ApprovalChainView.as_view(), name='api-v2.1-approval-chain'),
+    url(r'^api/v2.1/admin/download-link-excel/$', SysDownloadLinksReport.as_view(), name='api-v2.1-sys-download-links-report'),
 )
 ########################### End PingAn Group related ########################
 

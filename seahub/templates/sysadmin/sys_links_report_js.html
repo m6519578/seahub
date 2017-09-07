@@ -8,15 +8,40 @@ $(".view-link").click(function() {
 });
 
 $('.stats').click(function() {
-    var ul = '<ul>';
-    $.each($(this).attr('data-str').split(';'), function(idx, val) {
-        ul = ul + '<li>' + val + '</li>';
+    var $container = $('#shared-link-stats');
+    var token = $(this).attr('data-token');
+
+    $container.css({'width':600, 'height':300, 'overflow':'auto'}).modal();
+
+    $.ajax({
+        url: '{% url "ajax_get_link_status" %}',
+        data: {'token': token},
+        cache: false,
+        dataType: 'json',
+        success: function(data) {
+            var str = '';
+            for (var i = 0, len = data.status.length; i < len; i++) {
+                str += '<li>' + HTMLescape(data.status[i]) + '</li>';
+            }
+            $container.html('<ul>' + str + '</ul>');
+
+            if (data.pass_verify) {
+                str = '<p>该文件下载链接已通过 ' + '{{email_host_user|escapejs}}' + '外发至邮箱: ' + HTMLescape(data.receivers.join(', ')) + ' (发送于' + data.sent_at + ')</p>';
+
+                $container.append(str);
+            }
+        },
+        error: function(xhr) {
+            var msg;
+            if (xhr.responseText) {
+                msg = $.parseJSON(xhr.responseText).error;
+            } else {
+                msg = "{% trans "Failed. Please check the network." %}";
+            }
+            $container.html('<p class="error">' + msg + '</p>');
+        }
     });
 
-    ul = ul + '</ul>';
-
-    $('#shared-link-stats').html(ul).css('width', '600px')
-           .css('height', '250px').modal();
     return false;
 });
 

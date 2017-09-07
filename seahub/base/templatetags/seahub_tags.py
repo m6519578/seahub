@@ -9,6 +9,7 @@ from django.core.cache import cache
 from django.utils.safestring import mark_safe
 from django.utils import translation, formats
 from django.utils.dateformat import DateFormat
+from django.utils.encoding import smart_text
 from django.utils.translation import ugettext as _
 from django.utils.translation import ugettext, ungettext
 from django.utils.translation import pgettext
@@ -367,7 +368,7 @@ def email2nickname(value):
     key = normalize_cache_key(value, NICKNAME_CACHE_PREFIX)
     cached_nickname = cache.get(key)
     if cached_nickname and cached_nickname.strip():
-        return cached_nickname.strip()
+        return smart_text(cached_nickname.strip())
 
     profile = get_first_object_or_none(Profile.objects.filter(user=value))
     if profile is not None and profile.nickname and profile.nickname.strip():
@@ -376,7 +377,7 @@ def email2nickname(value):
         nickname = value.split('@')[0]
 
     cache.set(key, nickname, NICKNAME_CACHE_TIMEOUT)
-    return nickname
+    return smart_text(nickname)
 
 @register.filter(name='email2contact_email')
 def email2contact_email(value):

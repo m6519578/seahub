@@ -211,15 +211,15 @@ class FileShare(models.Model):
     def get_approval_chain(self, flat=False):
         username = self.username
 
-        # 1. get from user reviser map
-        r_map = FileShareReviserMap.objects.filter(username=username)
-        if len(r_map) > 0:
-            return [r_map[0].reviser_email]
-
-        # 2. get chain by share link
+        # 1. get from share link chain info table
         ret = FileShareApprovalChain.objects.get_by_share_link(self, flat=flat)
         if ret:
             return ret
+
+        # 2. get from user reviser map
+        r_map = FileShareReviserMap.objects.filter(username=username)
+        if len(r_map) > 0:
+            return [r_map[0].reviser_email]
 
         # 3. get chain by share link user department
         d_profile = DetailedProfile.objects.get_detailed_profile_by_user(
@@ -1200,7 +1200,11 @@ def approval_chain_str2list(chain_str):
 def approval_chain_list2str(chain_list, with_nickname=True):
     def get_nickname(username):
         nickname_cache = {}
-        return nickname_cache.get(username, email2nickname(username))
+        nickname = nickname_cache.get(username)
+        if not nickname:
+            nickname = email2nickname(username)
+            nickname_cache[username] = nickname
+        return nickname
 
     l = []
     for ele in chain_list:
@@ -1667,15 +1671,25 @@ class FileShareApprovalChainManager(models.Manager):
 
     def create_fs_approval_chain(self, share_link):
         username = share_link.username
-        d_profile = DetailedProfile.objects.get_detailed_profile_by_user(username)
-        if not d_profile:
-            logger.error('No detailed profile(department, ... etc) found for user %s' % username)
-            return
+        chain = []
 
-        chain = ApprovalChain.objects.get_by_department(d_profile.department)
+        # 1. get chain from user reivser map
+        r_map = FileShareReviserMap.objects.filter(username=username)
+        if len(r_map) > 0:
+            chain = [r_map[0].reviser_email]
+
+        # 2. get chain from user department
+        if not chain:
+            d_profile = DetailedProfile.objects.get_detailed_profile_by_user(username)
+            if d_profile:
+                chain = ApprovalChain.objects.get_by_department(d_profile.department)
+            else:
+                logger.error('No detailed profile(department, ... etc) found for user %s' % username)
+
         if not chain:
             return
 
+        # 3. create share link chain info
         parent = None
         for ele in chain:
             if isinstance(ele, basestring):

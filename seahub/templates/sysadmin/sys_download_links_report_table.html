@@ -17,9 +17,9 @@
         <td><a href="{% url 'view_shared_file' link.token %}" target="_blank">{{ link.filename }}</a></td>
         <td><a href="{% url 'user_profile' link.username %}" target="_blank">{{ link.username }}</a></td>
         <td>
-            {% with s=link.get_short_status_str v=link.get_verbose_status_str%}
+            {% with s=link.get_short_status_str %}
             {% if s %}
-            <a href="#" class="stats" data-str="{{ v }}">{{ s }}</a>
+            <a href="#" class="stats" data-token="{{link.token}}">{{ s }}</a>
             {% else %}
             {% trans "No verify" %}
             {% endif %}

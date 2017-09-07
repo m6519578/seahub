@@ -427,7 +427,7 @@ def ajax_get_link_status(request):
             'error': _('Share link is not found')
         }), status=400, content_type=content_type)
 
-    if fs.username != request.user.username:
+    if not request.user.is_staff and fs.username != request.user.username:
         return HttpResponse({}, status=403, content_type=content_type)
 
     fs_v = fs.get_verbose_status()
