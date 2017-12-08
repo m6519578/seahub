@@ -742,9 +742,9 @@ def send_shared_link(request):
 
     content_type = 'application/json; charset=utf-8'
 
-    if not IS_EMAIL_CONFIGURED:
-        data = json.dumps({'error':_(u'Sending shared link failed. Email service is not properly configured, please contact administrator.')})
-        return HttpResponse(data, status=500, content_type=content_type)
+    # if not IS_EMAIL_CONFIGURED:
+    #     data = json.dumps({'error':_(u'Sending shared link failed. Email service is not properly configured, please contact administrator.')})
+    #     return HttpResponse(data, status=500, content_type=content_type)
 
     from seahub.settings import SITE_NAME
 
@@ -791,12 +791,11 @@ def send_shared_link(request):
 
             try:
                 if file_shared_type == 'f':
-                    c['file_shared_type'] = _(u"file")
-                    send_html_email(_(u'A file is shared to you on %s') % SITE_NAME,
-                                    'shared_link_email.html',
-                                    c, from_email, [to_email],
-                                    reply_to=reply_to
-                                    )
+######################### Start PingAn Group related ########################
+                    token = file_shared_link.rstrip('/').split('/')[-1]
+                    share_link = FileShare.objects.get_valid_file_link_by_token(token)
+                    share_link.email_receivers(send_to=[to_email])
+######################### End PingAn Group related ##########################
                 else:
                     c['file_shared_type'] = _(u"directory")
                     send_html_email(_(u'A directory is shared to you on %s') % SITE_NAME,

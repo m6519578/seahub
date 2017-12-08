@@ -1,8 +1,10 @@
 # TODO: merge to `share_link_checking.py` ?
+from fnmatch import fnmatch
 from django.core.cache import cache
 from seahub.share.settings import (SHARE_LINK_DECRYPT_ATTEMPT_TIMEOUT,
                                    SHARE_LINK_DECRYPT_ATTEMPT_LIMIT,
-                                   ENABLE_SHARE_LINK_VERIFY_CODE)
+                                   ENABLE_SHARE_LINK_VERIFY_CODE,
+                                   PA_EMAIL_PATTERN_LIST)
 
 SHARE_LINK_DECRYPT_ATTEMPT_PREFIX = 'ShareLinkDecryptAttempt_'
 
@@ -33,3 +35,15 @@ def get_unusable_verify_code():
 
 def enable_share_link_verify_code():
     return ENABLE_SHARE_LINK_VERIFY_CODE
+
+def is_pa_email(email):
+    """Check whether `email` is PingAn email address.
+    """
+    for patt in PA_EMAIL_PATTERN_LIST:
+        if not patt:
+            continue
+
+        if fnmatch(email, patt) is True:
+            return True
+
+    return False

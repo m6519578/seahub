@@ -1,0 +1,9 @@
+{% load i18n %}{% autoescape off %}
+<p style="color:#121214;font-size:14px;">{% trans "Hi," %}</p>
+<br/>
+<p style="font-size:14px;color:#434144;">
+{% blocktrans %}{{ email }} shared a {{ file_shared_type }} <span style="font-weight:bold;">{{ file_shared_name}}</span> to you on {{ site_name }}:{% endblocktrans%} <br />
+<a href="{{ file_shared_link }}">{{ file_shared_link }}</a>
+</p>
+
+{% endautoescape %}

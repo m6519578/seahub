@@ -9,7 +9,7 @@ from django.utils.translation import ugettext as _
 
 from seahub.base.fields import LowerCaseCharField
 from seahub.utils import normalize_file_path, normalize_dir_path, gen_token,\
-    get_service_url
+    get_service_url, send_html_email
 
 ######################### Start PingAn Group related ########################
 import os
@@ -19,7 +19,8 @@ from seahub.profile.models import DetailedProfile
 from seahub.share.constants import STATUS_VERIFING, STATUS_PASS, STATUS_VETO
 from seahub.share.hashers import make_password, check_password, decode_password
 from seahub.share.settings import ENABLE_FILESHARE_CHECK
-from seahub.utils import send_html_email
+from seahub.share.utils import is_pa_email
+from seahub.utils.mail import send_pafile_html_email_with_dj_template
 from seahub.settings import SITE_NAME
 ######################### End PingAn Group related ##########################
 
@@ -389,8 +390,15 @@ class FileShare(models.Model):
                 'file_shared_name': self.get_name(),
                 'file_shared_type': _(u"file")
             }
-            send_html_email(_(u'A file is shared to you on %s') % SITE_NAME,
-                            'shared_link_email.html', c, None, [x])
+            if is_pa_email(x):
+                send_html_email(
+                    _(u'A file is shared to you on %s') % SITE_NAME,
+                    'shared_link_email.html',
+                    c, None, [x])
+            else:
+                send_pafile_html_email_with_dj_template(
+                    [x], _(u'A file is shared to you on %s') % SITE_NAME,
+                    'share/pa_shared_link_email.html', c)
     #################### END PingAn Group related ######################
 
 
