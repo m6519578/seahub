@@ -5,6 +5,9 @@ from seahub.utils import get_conf_text_ext
 from seahub.test_utils import BaseTestCase
 
 
+import pytest
+
+@pytest.mark.django_db
 class GetConfTextExtTest(BaseTestCase):
     def setUp(self):
         self.clear_cache()

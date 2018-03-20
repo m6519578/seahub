@@ -4,7 +4,9 @@ from constance import config
 
 from seahub.test_utils import BaseTestCase
 
+import pytest
 
+@pytest.mark.django_db
 class SysSettingsTest(BaseTestCase):
     def setUp(self):
         self.clear_cache()      # make sure cache is clean

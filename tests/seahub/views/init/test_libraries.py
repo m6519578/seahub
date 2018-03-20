@@ -7,6 +7,9 @@ from constance import config
 from seahub.options.models import UserOptions
 from seahub.test_utils import BaseTestCase
 
+import pytest
+
+@pytest.mark.django_db
 class LibrariesTest(BaseTestCase):
     def setUp(self):
         self.url = reverse('libraries')

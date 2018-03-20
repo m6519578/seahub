@@ -14,6 +14,9 @@ class RegisterSignalMixin(object):
                                      request=self.fake_request)
 
 
+import pytest
+
+@pytest.mark.django_db
 class EmailAdminOnRegistrationTest(BaseTestCase, RegisterSignalMixin):
     """Send admins emails with message that a new user joined.
     """
@@ -37,7 +40,7 @@ class EmailAdminOnRegistrationTest(BaseTestCase, RegisterSignalMixin):
 
         assert len(mail.outbox) > 0
 
-
+@pytest.mark.django_db
 class EmailAdminOnRegistrationTest2(BaseTestCase, RegisterSignalMixin):
     """Send admins emails with activate link.
     """

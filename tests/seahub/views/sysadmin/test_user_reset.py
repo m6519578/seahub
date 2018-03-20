@@ -10,6 +10,9 @@ from seahub.profile.models import Profile
 from seahub.test_utils import BaseTestCase
 
 
+import pytest
+
+@pytest.mark.django_db
 class UserResetTest(BaseTestCase):
     def setUp(self):
         self.clear_cache()

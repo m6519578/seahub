@@ -10,7 +10,9 @@ from seaserv import seafile_api
 
 from seahub.share.models import FileShare, UploadLinkShare
 from seahub.test_utils import BaseTestCase
+import pytest
 
+@pytest.mark.django_db
 class RepoTest(BaseTestCase):
     def setUp(self):
         self.clear_cache()

@@ -6,7 +6,9 @@ from seahub.share.models import FileShare, UploadLinkShare
 from seahub.test_utils import BaseTestCase
 from tests.common.utils import randstring
 
+import pytest
 
+@pytest.mark.django_db
 class FileSharedLinkApiTest(BaseTestCase):
 
     def setUp(self):

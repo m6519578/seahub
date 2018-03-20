@@ -114,6 +114,9 @@ class LoginTestMixin():
         return cache.get(LOGIN_ATTEMPT_PREFIX + urlquote(username), 0)
 
 
+import pytest
+
+@pytest.mark.django_db
 class LoginCaptchaTest(BaseTestCase, LoginTestMixin):
     def setUp(self):
         self.clear_cache()      # make sure cache is clean
@@ -180,7 +183,7 @@ class LoginCaptchaTest(BaseTestCase, LoginTestMixin):
 
         assert self._get_user_login_failed_attempt(self.user.username) == 0
 
-
+@pytest.mark.django_db
 class FreezeUserOnLoginFailedTest(BaseTestCase, LoginTestMixin):
     def setUp(self):
         self.clear_cache()      # make sure cache is clean

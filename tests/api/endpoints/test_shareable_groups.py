@@ -1,12 +1,16 @@
 # Copyright (c) 2011-2016 Seafile Ltd.
 # -*- coding: utf-8 -*-
 import json
+
 from django.core.urlresolvers import reverse
+from constance import config
+import pytest
+
 from seahub.test_utils import BaseTestCase
 from tests.common.utils import randstring
-from constance import config
 
 
+@pytest.mark.django_db
 class ShareableGroupsTest(BaseTestCase):
 
     def setUp(self):

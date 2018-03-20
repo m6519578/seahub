@@ -14,6 +14,9 @@ from constance import config
 
 from seaserv import ccnet_threaded_rpc
 
+import pytest
+
+@pytest.mark.django_db
 class UserToggleStatusTest(BaseTestCase):
     def setUp(self):
         self.login_as(self.admin)
@@ -162,6 +165,7 @@ class SysUserAdminExportExcelTest(BaseTestCase):
         assert 'application/ms-excel' in resp._headers['content-type']
 
 
+@pytest.mark.django_db
 class BatchAddUserTest(BaseTestCase):
     def setUp(self):
         self.clear_cache()

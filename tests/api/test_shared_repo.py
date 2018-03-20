@@ -5,7 +5,9 @@ from constance import config
 
 from seaserv import seafile_api, ccnet_threaded_rpc
 
+import pytest
 
+@pytest.mark.django_db
 class SharedRepoTest(BaseTestCase):
     def setUp(self):
         self.repo_id = self.create_repo(name='test-admin-repo', desc='',

@@ -4,17 +4,18 @@ from constance import config
 from seaserv import seafile_api, ccnet_threaded_rpc
 
 from seahub.test_utils import BaseTestCase
+import pytest
 
 
 class RepoPublicTest(BaseTestCase):
     def setUp(self):
+        self.clear_cache()
+
         self.repo_id = self.create_repo(name='test-admin-repo', desc='',
                                         username=self.admin.username,
                                         passwd=None)
         self.url = '/api2/shared-repos/%s/' % self.repo_id
         self.user_repo_url = '/api2/shared-repos/%s/' % self.repo.id
-
-        config.ENABLE_USER_CREATE_ORG_REPO = 1
 
     def tearDown(self):
         self.remove_repo(self.repo_id)
@@ -47,8 +48,11 @@ class RepoPublicTest(BaseTestCase):
         json_resp = json.loads(resp.content)
         assert 'success' in json_resp
 
+    @pytest.mark.django_db
     def test_admin_can_set_pub_repo_when_setting_disalbed(self):
+        config.ENABLE_USER_CREATE_ORG_REPO = 1
         assert bool(config.ENABLE_USER_CREATE_ORG_REPO) is True
+
         config.ENABLE_USER_CREATE_ORG_REPO = False
         assert bool(config.ENABLE_USER_CREATE_ORG_REPO) is False
 
@@ -59,8 +63,11 @@ class RepoPublicTest(BaseTestCase):
         json_resp = json.loads(resp.content)
         assert 'success' in json_resp
 
+    @pytest.mark.django_db
     def test_user_can_not_set_pub_repo_when_setting_disalbed(self):
+        config.ENABLE_USER_CREATE_ORG_REPO = 1
         assert bool(config.ENABLE_USER_CREATE_ORG_REPO) is True
+
         config.ENABLE_USER_CREATE_ORG_REPO = False
         assert bool(config.ENABLE_USER_CREATE_ORG_REPO) is False
 

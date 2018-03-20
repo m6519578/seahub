@@ -5,7 +5,9 @@ from seahub.options.models import (UserOptions, KEY_FORCE_PASSWD_CHANGE,
                                    VAL_FORCE_PASSWD_CHANGE)
 from seahub.test_utils import BaseTestCase
 
+import pytest
 
+@pytest.mark.django_db
 class UserAddTest(BaseTestCase):
     def setUp(self):
         self.clear_cache()
