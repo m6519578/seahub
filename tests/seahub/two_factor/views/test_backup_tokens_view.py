@@ -21,4 +21,4 @@ class BackupTokensViewTest(BaseTestCase):
         resp = self.client.get(self.url)
         # redirect to 2fa setup page
         self.assertRegexpMatches(resp['Location'],
-                                 r'http://testserver/profile/two_factor_authentication/setup/')
+                                 r'/profile/two_factor_authentication/setup/')
