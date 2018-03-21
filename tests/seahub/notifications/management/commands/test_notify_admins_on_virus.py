@@ -1,6 +1,6 @@
 from django.core import mail
 from django.core.management import call_command
-from django.conf.urls import patterns, url
+from django.conf.urls import url
 from django.test import override_settings
 
 import seahub
@@ -17,10 +17,9 @@ class CommandTest(BaseTestCase):
         super(CommandTest, self).setUp()
 
         self.original_urls = seahub.urls.urlpatterns
-        seahub.urls.urlpatterns += patterns(
-            '',
+        seahub.urls.urlpatterns += [
             url(r'^sys/virus_scan_records/$', sys_virus_scan_records, name='sys_virus_scan_records'),
-        )
+        ]
 
     def test_can_send(self):
         self.assertEqual(len(mail.outbox), 0)
