@@ -4,7 +4,8 @@ from django.core.cache import cache
 from seahub.share.settings import (SHARE_LINK_DECRYPT_ATTEMPT_TIMEOUT,
                                    SHARE_LINK_DECRYPT_ATTEMPT_LIMIT,
                                    ENABLE_SHARE_LINK_VERIFY_CODE,
-                                   PA_EMAIL_PATTERN_LIST)
+                                   PA_EMAIL_PATTERN_LIST,
+                                   PA_STRONG_PASSWORD_PATT)
 
 SHARE_LINK_DECRYPT_ATTEMPT_PREFIX = 'ShareLinkDecryptAttempt_'
 
@@ -47,3 +48,15 @@ def is_pa_email(email):
             return True
 
     return False
+
+from seahub.utils import is_user_password_strong
+def is_pa_strong_password(passwd):
+    if len(passwd) < 8:
+        return False
+
+    if PA_STRONG_PASSWORD_PATT:
+        for func in PA_STRONG_PASSWORD_PATT:
+            if func(passwd) is False:
+                return False
+
+    return is_user_password_strong(passwd)

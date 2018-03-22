@@ -19,6 +19,7 @@ from seahub.share.utils import (incr_share_link_decrypt_failed_attempts,
                                 show_captcha_share_link_password_form,
                                 enable_share_link_verify_code,
                                 get_unusable_verify_code)
+from seahub.share.signals import file_shared_link_decrypted
 from seahub.utils import render_error
 from seahub.utils.ip import get_remote_ip
 
@@ -156,11 +157,16 @@ def share_link_passwd_check_for_pingan(func):
                 form = SharedLinkPasswordForm(post_values)
             d['form'] = form
             if form.is_valid():
+                file_shared_link_decrypted.send(sender=None, fileshare=fileshare,
+                                                request=request, success=True)
                 set_share_link_access(request, token)
                 clear_share_link_decrypt_failed_attempts(ip)
 
                 return func(request, fileshare, *args, **kwargs)
             else:
+                file_shared_link_decrypted.send(sender=None, fileshare=fileshare,
+                                                request=request, success=False)
+
                 incr_share_link_decrypt_failed_attempts(ip)
                 d.update({'password': request.POST.get('password', ''),
                           'verify_code': request.POST.get('verify_code', '')})

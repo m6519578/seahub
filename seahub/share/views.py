@@ -1171,6 +1171,13 @@ def ajax_get_download_link(request):
             data = json.dumps({'error': _('Password is too short')})
             return HttpResponse(data, status=400, content_type=content_type)
 
+######################### Start PingAn Group related ########################
+        from .utils import is_pa_strong_password
+        if not is_pa_strong_password(passwd):
+            data = json.dumps({'error': u'密码强度不够，请换个密码'})
+            return HttpResponse(data, status=400, content_type=content_type)
+######################### End PingAn Group related ##########################
+
         try:
             expire_days = int(request.POST.get('expire_days', 0))
         except ValueError:

@@ -169,7 +169,8 @@ define([
 
             var random_password_length = app.pageOptions.share_link_password_min_length;
             var random_password = '';
-            var possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuvwxyz0123456789';
+            ////////////////////////// modified 'possible' for ping-an ////////////////////////
+            var possible = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789abcdefghijkmnpqrstuvwxyz23456789';
             for (var i = 0; i < random_password_length; i++) {
                 random_password += possible.charAt(Math.floor(Math.random() * possible.length));
             }
@@ -233,14 +234,18 @@ define([
                     Common.showFormError(form_id, gettext("Password is too short"));
                     return false;
                 }
-                if (!passwd_again) {
-                    Common.showFormError(form_id, gettext("Please enter the password again"));
-                    return false;
+///////////////////////// Start PingAn Group related ////////////////////////
+                if (this.is_dir) { // for file (download link), no 'passwd again' input.
+                    if (!passwd_again) {
+                        Common.showFormError(form_id, gettext("Please enter the password again"));
+                        return false;
+                    }
+                    if (passwd != passwd_again) {
+                        Common.showFormError(form_id, gettext("Passwords don't match"));
+                        return false;
+                    }
                 }
-                if (passwd != passwd_again) {
-                    Common.showFormError(form_id, gettext("Passwords don't match"));
-                    return false;
-                }
+///////////////////////// End PingAn Group related //////////////////////////
                 post_data["use_passwd"] = 1;
                 post_data["passwd"] = passwd;
             } else {

@@ -12,4 +12,5 @@ SHARE_LINK_DECRYPT_ATTEMPT_LIMIT = getattr(settings, 'SHARE_LINK_ATTEMPT_LIMIT',
 SHARE_LINK_DECRYPT_ATTEMPT_TIMEOUT = getattr(settings, 'SHARE_LINK_DECRYPT_ATTEMPT_TIMEOUT', 15 * 60)
 ENABLE_SHARE_LINK_VERIFY_CODE = getattr(settings, 'ENABLE_SHARE_LINK_VERIFY_CODE', True)
 PA_EMAIL_PATTERN_LIST = getattr(settings, 'PA_EMAIL_PATTERN_LIST', ['*@pingan.com.cn', ])
+PA_STRONG_PASSWORD_PATT = getattr(settings, 'PA_STRONG_PASSWORD_PATT', ())
 ######################### End PingAn Group related ##########################

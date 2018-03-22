@@ -20,6 +20,7 @@ from seahub.share.constants import STATUS_VERIFING, STATUS_PASS, STATUS_VETO
 from seahub.share.hashers import make_password, check_password, decode_password
 from seahub.share.settings import ENABLE_FILESHARE_CHECK
 from seahub.share.utils import is_pa_email
+from seahub.utils.ip import get_remote_ip
 from seahub.utils.mail import send_pafile_html_email_with_dj_template
 from seahub.settings import SITE_NAME
 ######################### End PingAn Group related ##########################
@@ -1730,10 +1731,23 @@ class FileShareApprovalChain(models.Model):
     objects = FileShareApprovalChainManager()
 
 
+class FileShareDecryptAudit(models.Model):
+    """Record share link decrypt failed attempt.
+    share link info, request ip, user agent.
+    """
+    share_link = models.ForeignKey(FileShare)
+    decrypt_success = models.BooleanField(db_index=True)
+    repo_id = models.CharField(max_length=36, db_index=True)
+    path = models.TextField()
+    ip = models.CharField(max_length=20, db_index=True)
+    device = models.CharField(max_length=256)
+    ctime = models.DateTimeField(default=datetime.datetime.now, db_index=True)
+
+
 ########## Handle signals to remove file share
 from django.dispatch import receiver
 from seahub.signals import file_deleted, file_edited
-from seahub.share.signals import file_shared_link_created
+from seahub.share.signals import file_shared_link_created, file_shared_link_decrypted
 
 @receiver([file_deleted, file_edited])
 def file_updated_cb(sender, **kwargs):
@@ -1762,4 +1776,17 @@ def fs_created_cb(sender, **kwargs):
     for e in sent_to:
         FileShareExtraInfo.objects.create(share_link=sender, sent_to=e,
                                           note=note)
+
+########## Handle signals to record file share decrypt info
+@receiver(file_shared_link_decrypted)
+def fs_decrypted_cb(sender, **kwargs):
+    fs = kwargs['fileshare']
+    req = kwargs['request']
+    success = kwargs['success']
+
+    FileShareDecryptAudit(share_link=fs, decrypt_success=success,
+                          repo_id=fs.repo_id, path=fs.path,
+                          ip=get_remote_ip(req),
+                          device=req.META.get("HTTP_USER_AGENT", '-')[:255]).save()
+
 ######################## End PingAn Group related ##########################

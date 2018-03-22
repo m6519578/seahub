@@ -447,8 +447,7 @@
                             <span title="{% trans "Show" %}" class="icon-eye show-or-hide-password cspt" role="button" tabindex="0" aria-label="{% trans "Show" %}"></span>
                             <span title="{% trans "Generate a random password" %}" class="icon-magic generate-random-password cspt" role="button" tabindex="0" aria-label="{% trans "Generate a random password" %}"></span>
                         </div>
-                        <label for="passwd-again">{% trans "Password again" %}</label><br />
-                        <input type="password" name="password_again" class="input" id="passwd-again" />
+                        {# removed 'password again' here, for ping-an #}
                     </div>
                     <label class="checkbox-label">
                         <input type="checkbox" name="set_expiration" class="vam" />
@@ -459,10 +458,10 @@
                         <input type="text" name="expire_days" class="input" id="expire-days" />
                     </div>
 
-                    <label for="sent-to">发送对象</label><br />
+                    <label for="sent-to">下载链接通知对象</label><br />
                     <input type="text" class="input" name="sent_to" placeholder="{% trans "Emails, Seperated by ','"%}" id="sent-to" /><br />
 
-                    <label for="note">外发需求</label><br />
+                    <label for="note">申请原因</label><br />
                     <textarea class="textarea" name="note"></textarea><br />
                     
                     <p class="error hide"></p>

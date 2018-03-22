@@ -576,10 +576,10 @@ def download_links_excel_report(download_links):
         # prepare excel data
         row = [d_link.filename, d_link.username, receivers,
                d_link.get_short_status_str(),
-               d_link.ctime.strftime('%Y-%m-%d'),
-               d_link.first_dl_time.strftime('%Y-%m-%d') if d_link.first_dl_time else '--',
+               d_link.ctime.strftime('%Y-%m-%d %H:%M:%S'),
+               d_link.first_dl_time.strftime('%Y-%m-%d %H:%M:%S') if d_link.first_dl_time else '--',
                d_link.dl_cnt,
-               d_link.expire_date.strftime('%Y-%m-%d') if d_link.expire_date else '--',
+               d_link.expire_date.strftime('%Y-%m-%d %H:%M:%S') if d_link.expire_date else '--',
                d_link.shared_link,
         ]
 
@@ -588,7 +588,7 @@ def download_links_excel_report(download_links):
         DLP_vtime = '--'
         DLP_status = status_dict.get(app_status[0].status, '')
         if app_status[0].vtime:
-            DLP_vtime = app_status[0].vtime.strftime('%Y-%m-%d')
+            DLP_vtime = app_status[0].vtime.strftime('%Y-%m-%d %H:%M:%S')
 
         row.append(DLP_status)
         row.append(DLP_vtime)
@@ -604,7 +604,7 @@ def download_links_excel_report(download_links):
                     people_email = x.email
                     people_status = status_dict.get(x.status, '')
                     if x.vtime:
-                        people_vtime = x.vtime.strftime('%Y-%m-%d')
+                        people_vtime = x.vtime.strftime('%Y-%m-%d %H:%M:%S')
 
                     row.append(people_email)
                     row.append(people_status)
@@ -613,7 +613,7 @@ def download_links_excel_report(download_links):
                 people_email = ele.email
                 people_status = status_dict.get(ele.status, '')
                 if ele.vtime:
-                    people_vtime = ele.vtime.strftime('%Y-%m-%d')
+                    people_vtime = ele.vtime.strftime('%Y-%m-%d %H:%M:%S')
 
                 row.append(people_email)
                 row.append(people_status)
